@@ -19,9 +19,6 @@ data_iid2.cat4<-fulldata_iid2 %>%
 data_iid2.cat4$age_cat<- factor(data_iid2.cat4$age_cat, 
                                 levels = c("5-","5 to 15","15 to 64","65+"))
 
-
-
-
 # Dates
 idd2_startdate<-as.Date("2008-04-01")
 idd2_enddate<-as.Date("2009-08-01")
@@ -39,6 +36,8 @@ sim_startdate<-as.Date("2007-01-01")
 sim_enddate  <-as.Date("2013-12-31")
 days_vec<-seq(sim_startdate,sim_enddate,"day")
 
+# Demographics
+mort_rates<-read.csv(here("data",paste("mortality_MLE",".csv",sep = "")))/1000
 
 #######################################################################
 ## Set up necessary model structures and load data and parameters
@@ -64,11 +63,11 @@ contact = contact_matrix(
   age.limits = c(0,as.numeric(as.character(age.categories[1:(length(ages)-1)]))), 
   symmetric = TRUE)
 
-pop = contact$demography$proportion*1e5 # Population numbers (using per 100K)
+pop = rep(contact$demography$population) # Population numbers (using per 100K)
 
 # Matrix to input into transmission formula, note is corrected for pop size
-transmission = contact$matrix / rep(pop, each = ncol(contact$matrix))
-
+transmission <- contact$matrix /
+  rep(contact$demography$population, each = ncol(contact$matrix))
 ########## Model parameters ##############################################
 model.params<-list(
   
@@ -79,15 +78,15 @@ pop = pop,
 transmission =transmission,
 N_age = length(ages),
 age_select= c(1,seq(2,length(ages),1)*0),
-beta = 0.18,   # transm coefficient
+beta = 0.05,   # transm coefficient
 delta = 1/25,  # maternal Ab decay
 epsilon = 1,   # incubation
 theta = 1/2,   # duration symptoms
 sigma = 1/15, # duration asymp shedding
-tau   = 1/365,#(365*5.1),    # duration immunity
+tau   = 1/(5.1*365),#(365*5.1),    # duration immunity
 rho   = 0.05, # rel infect asymptomatic 
 p_nonsecretor=0.2, # Fraction immune genetically
-mu    = c(0.004,0.0001,0.0003,0.006,0.012, 0.019, 0.065, 0.1, 0.4,0.4)/365,
+mu    = mort_rates$x/365,
 age_beta = 1+(seq(1,length(ages),1)*0),
 und5inf=5, # cofactor of infectiousness for under 5
 # simulation

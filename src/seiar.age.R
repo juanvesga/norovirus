@@ -41,30 +41,30 @@ p[3]   <- (1-p_nonsecretor)*(1-prev)
 ## Force of infection
 m[, ] <- user() # age-structured contact matrix
 c_ij[, ] <- m[i, j] * (I[i] + A[i] * rho + E[i] * rho)
-lambda[] <- beta * age_beta[i] * sum(c_ij[,i])
+lambda[] <- beta * age_beta[i] * sum(c_ij[ ,i])
 
 ## Draws from binomial distributions for numbers changing between
 ## compartments:
 
 n_muG[] <- rbinom(G[i], p_mu[i])
 
-n_MS[] <- (rbinom(M[i], p_MS[i]))
-n_muM[]<- (rbinom(M[i]-n_MS[i], p_mu[i]))
+n_MS[] <- rbinom(M[i], p_MS[i])
+n_muM[]<- rbinom(M[i]-n_MS[i], p_mu[i])
 
-n_SE[] <- (rbinom(S[i], p_SE[i]))
-n_muS[]<- (rbinom(S[i]-n_SE[i], p_mu[i]))
+n_SE[] <- rbinom(S[i], sum(p_SE[i]))
+n_muS[]<- rbinom(S[i]-n_SE[i], p_mu[i])
 
-n_EI[] <- (rbinom(E[i], p_EI))
-n_muE[]<- (rbinom(E[i]-n_EI[i], p_mu[i]))
+n_EI[] <- rbinom(E[i], p_EI)
+n_muE[]<- rbinom(E[i]-n_EI[i], p_mu[i])
 
-n_IA[] <- (rbinom(I[i], p_IA))
-n_muI[]<- (rbinom(I[i]-n_IA[i], p_mu[i]))
+n_IA[] <- rbinom(I[i], p_IA)
+n_muI[]<- rbinom(I[i]-n_IA[i], p_mu[i])
 
-n_AR[] <- (rbinom(A[i], p_AR))
-n_muA[]<- (rbinom(A[i]-n_AR[i], p_mu[i]))
+n_AR[] <- rbinom(A[i], p_AR)
+n_muA[]<- rbinom(A[i]-n_AR[i], p_mu[i])
 
-n_RS[] <- (rbinom(R[i], p_RS))
-n_muR[]<- (rbinom(R[i]-n_RS[i], p_mu[i]))
+n_RS[] <- rbinom(R[i], p_RS)
+n_muR[]<- rbinom(R[i]-n_RS[i], p_mu[i])
 
 
 

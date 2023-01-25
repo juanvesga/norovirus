@@ -21,7 +21,14 @@ set.seed(2)
 ########################################
 ##Fine tune age distribution through mortality 
 
-mu0<-c(0.004,0.0001,0.0003,0.006,0.012, 0.019, 0.065, 0.1, 0.4,0.4)*10000
+mu0<-c(0.004,0.0001,0.0003,0.006,0.012, 0.019, 0.065, 0.1, 0.4,0.7)*10000
+
+#mu0<-mort_rates$x*10000
+
+# check population distribution
+sim<-run_demog_model(mu0)
+p<-sim$age.distr.sim
+plot_age_distr(p,model.params)
 
 
 loglikelihood <- function(p){
@@ -54,7 +61,7 @@ x1 <- fminsearch(fun = loglikelihood,
 )
 
 x  <- c(x1$optbase$xopt)
-mu1<-x/1000
+mu1<-x/10000
 write.csv(x, here("data",paste("mortality_MLE",".csv",sep = "")))
 
 ssi<-run_demog_model(x)

@@ -20,8 +20,63 @@ set.seed(2)
 # Run the model for 10 years (in days)
 ntimes<-length(days_vec)/model.params$dt# note dt step
 
-model.params$beta<-0.036
-model.params$und5inf<-4.89
+model.params$beta<-0.035
+model.params$und5inf<-5
+#####
+
+
+loglikelihood <- function(thetas,label=names){
+  llk<-0
+  if (dim(thetas)[2] == 1) {
+    thetas <- as.data.frame(t(thetas))
+    colnames(thetas) <- label
+  }
+  
+  thetas<-bind_rows(thetas)
+  if ( any(thetas) < 0){
+    llk<- 1000
+  }else{
+    out<-get_output(thetas,model.params,ntimes,model.seiar)
+    llk <- sum(dpois(
+      x = round(data_iid2$per1000personyears),
+      lambda = out$irate_pyear,
+      log = TRUE
+    ), na.rm = FALSE)*-1
+  }
+  return(llk)
+}
+
+theta<-data.frame(
+  beta=0.035,
+  und5inf=5
+)
+names <- colnames(theta)
+
+loglikelihood(theta)
+
+init.theta<-c(
+  beta=0.035,
+  und5inf=5
+)
+
+fminsearch <- neldermead::fminsearch
+opt <- neldermead::optimset(TolX = 1.e-2,  Display = "iter", MaxFunEvals =500)
+x1 <- fminsearch(fun = loglikelihood,  
+                 x0 = init.theta,
+                 # xmin =c(1,0.0001,2),
+                 # xmax = c(10,1,5),
+                 options = opt
+)
+
+x  <- c(x1$optbase$xopt)
+
+write.csv(x, here("data",paste("simplex_MLE",".csv",sep = "")))
+
+
+#######################################
+### Run results
+model.params$beta<-x[1]
+model.params$und5inf<-x[2]
 
 sim<-run_model(model.params,ntimes, model.seiar)
 
@@ -160,25 +215,6 @@ p<-ggplot(df,aes(x=x,y=seroprev*100))+
 
 gridExtra::grid.arrange(p)
 
-## Plot population
-sample<- 
-  states[idx$M,,]+
-  states[idx$G,,]+
-  states[idx$S,,]+
-  states[idx$E,,]+
-  states[idx$I,,]+
-  states[idx$A,,]+
-  states[idx$R,,]
-n<-array_cumsum(sample,1)
-n<-colMeans(n[dim(n)[1],,])
-
-df<-data.frame(x=days_vec,y=n)
-
-
-ggplot(df, aes(x=x,y=y))+
-  geom_line(col="purple",linewidth=2)+
-  ylim(0,70e6)+
-  labs(y="Total population")
 
 
 

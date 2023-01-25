@@ -63,7 +63,7 @@ run_demog_model<-function(mu, pars=model.params, times=365*5,seiar=model.seiar){
 ## Run model
 
 run_model<-function(pars, times, seiar=model.seiar){
-  
+ 
   n_particles <- 5L
   dt <- pars$dt
   seed<-5
@@ -135,6 +135,43 @@ run_model<-function(pars, times, seiar=model.seiar){
   
   return(results)
 }
+
+
+get_output<-function(theta,pars, ntimes, seiar=model.seiar){
+ 
+  pars$beta<-theta[['beta']]
+  pars$und5inf<-theta[['und5inf']]
+  sim<-run_model(pars,ntimes, seiar)
+  
+  idday<-seq(1,ntimes, 1/pars$dt)
+  states<-sim$states[,,idday]
+  idx<-sim$idx
+  inc_period<-which(days_vec%in%idd2_fup) # select study dates to match data period
+  inc<-rowMeans(states[idx$cumu_inc,,tail(inc_period, n=1)]-states[idx$cumu_inc,,1])
+  inc<- c(inc[1:3],sum(inc[c(4,5,6,7,8)]),sum(inc[c(9,10)]))
+  
+  person_time<- 
+    states[idx$M,,inc_period]+
+    states[idx$G,,inc_period]+
+    states[idx$S,,inc_period]+
+    states[idx$E,,inc_period]+
+    states[idx$R,,inc_period]
+  
+  pt<-array_cumsum(person_time,3)
+  pt<-rowMeans(pt[,,dim(pt)[3]])
+  pt<- c(pt[1:3],sum(pt[c(4,5,6,7,8)]),sum(pt[c(9,10)])) # aggregate over age brackets 
+  
+  irate_pyear<-1000*365*inc/pt # cases per 1000 person-years by age 
+  
+  out<-list(
+    irate_pyear=irate_pyear
+  )
+  
+  return(out)
+}
+
+
+
 
 ################################
 # Plot age dsitributions
