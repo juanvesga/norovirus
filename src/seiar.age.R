@@ -9,8 +9,8 @@ update(G_tot) <- G_tot + sum(n_bG) - sum(n_muG)
 update(S_tot) <- S_tot + sum(n_bS) + sum(n_MS) + sum(n_RS) - sum(n_SE) - sum(n_muS) 
 update(E_tot) <- E_tot + sum(n_SE) - sum(n_EI) - sum(n_muE)
 update(I_tot) <- I_tot + sum(n_EI) - sum(n_IA)  - sum(n_muI)
-update(A_tot) <- A_tot + sum(n_IA) - sum(n_AR) - sum(n_muA)
-update(R_tot) <- R_tot + sum(n_AR) - sum(n_RS) - sum(n_muR)
+update(A_tot) <- A_tot + sum(n_IA) + sum(n_RA) - sum(n_AR) - sum(n_muA)
+update(R_tot) <- R_tot + sum(n_AR) - sum(n_RS) - sum(n_RA) -sum(n_muR)
 
 ## Equations for transitions between compartments by age group
 update(M[]) <- M[i] + n_bM[i] - n_MS[i] - n_muM[i] + n_ageM[i]
@@ -18,8 +18,8 @@ update(G[]) <- G[i] + n_bG[i] - n_muG[i] + n_ageG[i]
 update(S[]) <- S[i] + n_bS[i] + n_MS[i] + n_RS[i] - n_SE[i] - n_muS[i] + n_ageS[i] 
 update(E[]) <- E[i] + n_SE[i] - n_EI[i] - n_muE[i] + n_ageE[i]
 update(I[]) <- I[i] + n_EI[i] - n_IA[i] - n_muI[i] + n_ageI[i]
-update(A[]) <- A[i] + n_IA[i] - n_AR[i] - n_muA[i] + n_ageA[i]
-update(R[]) <- R[i] + n_AR[i] - n_RS[i] - n_muR[i] + n_ageR[i]
+update(A[]) <- A[i] + n_IA[i] + n_RA[i] - n_AR[i]  - n_muA[i] + n_ageA[i]
+update(R[]) <- R[i] + n_AR[i] - n_RS[i] - n_muR[i] - n_RA[i]  + n_ageR[i]
 
 ## To compute cumulative incidence
 update(cumu_inc[]) <- cumu_inc[i] + n_EI[i]
@@ -28,6 +28,7 @@ update(cumu_inc[]) <- cumu_inc[i] + n_EI[i]
 p_mu[] <- 1 - exp(-mu[i] * dt) # mortality
 p_MS[] <- 1 - exp(-delta * dt)  # M to S
 p_SE[] <- 1 - exp(-lambda[i] * dt) # S to E
+p_RA[] <- 1 - exp(-lambda[i] * alpha * dt)
 p_EI   <- 1 - exp(-epsilon * dt) # E to I
 p_IA   <- 1 - exp(-theta * dt) # I to A
 p_AR   <- 1 - exp(-sigma * dt) # A to R
@@ -41,7 +42,8 @@ p[3]   <- (1-p_nonsecretor)*(1-prev)
 ## Force of infection
 m[, ] <- user() # age-structured contact matrix
 c_ij[, ] <- m[i, j] * (I[i] + A[i] * rho + E[i] * rho)
-lambda[] <- beta * age_beta[i] * sum(c_ij[ ,i])
+beta_t <- beta *(1 + w1*cos((2*pi*time)/364 + w2*pi))
+lambda[] <- beta_t * age_beta[i] * sum(c_ij[ ,i])
 
 ## Draws from binomial distributions for numbers changing between
 ## compartments:
@@ -63,8 +65,9 @@ n_muI[]<- rbinom(I[i]-n_IA[i], p_mu[i])
 n_AR[] <- rbinom(A[i], p_AR)
 n_muA[]<- rbinom(A[i]-n_AR[i], p_mu[i])
 
-n_RS[] <- rbinom(R[i], p_RS)
-n_muR[]<- rbinom(R[i]-n_RS[i], p_mu[i])
+n_RA[] <- rbinom(R[i], sum(p_RA[i]))
+n_RS[] <- rbinom(R[i]- n_RA[i], p_RS)
+n_muR[]<- rbinom(R[i]-n_RS[i]- n_RA[i], p_mu[i])
 
 
 
@@ -140,6 +143,10 @@ p_nonsecretor<-user(0.2) # Fraction immune genetically
 mu[]  <- user()      # mortality rates 
 age_beta[]<-user()   # age-specific infectiousness co factor
 aging_mat[,]<-user() # aging transitions matrix
+w1 <-user(0.15) # sesonality
+w2 <-user(2/12) # sesonality
+pi <-user(3.141593)
+alpha<-user(1)# rel susc in R 
 #
 # dimensions of arrays
 N_age <- user()
@@ -191,9 +198,11 @@ dim(n_EI) <- N_age
 dim(n_IA) <- N_age
 dim(n_AR) <- N_age
 dim(n_RS) <- N_age
+dim(n_RA) <- N_age
 dim(p_mu) <- N_age
 dim(p_MS) <- N_age
 dim(p_SE) <- N_age
+dim(p_RA) <- N_age
 dim(p)   <- 3
 dim(mu)<-N_age
 dim(m) <- c(N_age, N_age)

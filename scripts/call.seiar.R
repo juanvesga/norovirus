@@ -20,7 +20,7 @@ set.seed(2)
 # Run the model for 10 years (in days)
 ntimes<-length(days_vec)/model.params$dt# note dt step
 
-model.params$beta<-0.036
+model.params$beta<-0.06
 model.params$und5inf<-4.89
 
 sim<-run_model(model.params,ntimes, model.seiar)
@@ -180,7 +180,11 @@ ggplot(df, aes(x=x,y=y))+
   ylim(0,70e6)+
   labs(y="Total population")
 
+w1<-0.15
+w2<-2/12
+t<-seq(1,365*3,1)
+Z<-1 + w1*cos((2*pi*t)/364 + w2*pi)
 
-
+plot(t,Z,type="l")
 
 

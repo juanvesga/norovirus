@@ -89,6 +89,9 @@ p_nonsecretor=0.2, # Fraction immune genetically
 mu    = mort_rates$x/365,
 age_beta = 1+(seq(1,length(ages),1)*0),
 und5inf=5, # cofactor of infectiousness for under 5
+w1 = 0.15, # sesonality (if 0 not seasonal)
+w2 = 2/12, # 
+alpha = 1, # relative suscept in R compartment 
 # simulation
 dt=0.25
 
