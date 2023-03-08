@@ -1,5 +1,7 @@
 ## Definition of the time-step and output as "time"
-dt <- user()
+dt <- user(1)
+steps_per_day <- 1/dt
+steps_per_week<- 7/dt
 initial(time) <- 0
 update(time) <- (step + 1) * dt
 
@@ -12,6 +14,17 @@ update(I_tot) <- I_tot + sum(n_EI) - sum(n_IA)  - sum(n_muI)
 update(A_tot) <- A_tot + sum(n_IA) + sum(n_RA) - sum(n_AR) - sum(n_muA)
 update(R_tot) <- R_tot + sum(n_AR) - sum(n_RS) - sum(n_RA) -sum(n_muR)
 
+# Cumulative infections
+update(infections_tot) <- infections_tot + sum(n_EI)
+
+# Daily infections incidence
+update(infections_day) <- sum(n_EI) 
+
+# Weekly reported cases (match sgss)
+update(reported_wk) <- if (step %% steps_per_week == 0)
+  sum(n_EI)*(1/repfac) else  (1/repfac)*(reported_wk + sum(n_EI)) 
+
+
 ## Equations for transitions between compartments by age group
 update(M[]) <- M[i] + n_bM[i] - n_MS[i] - n_muM[i] + n_ageM[i]
 update(G[]) <- G[i] + n_bG[i] - n_muG[i] + n_ageG[i]
@@ -21,8 +34,23 @@ update(I[]) <- I[i] + n_EI[i] - n_IA[i] - n_muI[i] + n_ageI[i]
 update(A[]) <- A[i] + n_IA[i] + n_RA[i] - n_AR[i]  - n_muA[i] + n_ageA[i]
 update(R[]) <- R[i] + n_AR[i] - n_RS[i] - n_muR[i] - n_RA[i]  + n_ageR[i]
 
-## To compute cumulative incidence
-update(cumu_inc[]) <- cumu_inc[i] + n_EI[i]
+## compute cumulative incidence ( match IDD2 data)
+update(cumu_inc[]) <- if (step <= (2283/dt)) 0 else 
+  if(i==1)  sum(cumu_inc[1:5]) + sum(n_EI[1:5]) else
+    if(i==2) sum(cumu_inc[6:8]) + sum(n_EI[6:8]) else 
+      if (i==3) sum(cumu_inc[9:13]) + sum(n_EI[9:13]) else
+        if (i==4) sum(cumu_inc[14:15]) + sum(n_EI[14:15]) else 0
+
+## compute at risk population ( match IDD2 data)
+update(n_risk[]) <- if (step <= (2283/dt)) 0 else 
+  if(i==1)  sum(n_risk[1:5]) + sum(M[1:5]) + sum(G[1:5])+ sum(S[1:5])+ sum(R[1:5]) else
+    if(i==2)  sum(n_risk[6:8]) + sum(M[6:8]) + sum(G[6:8])+ sum(S[6:8])+ sum(R[6:8]) else
+      if(i==3)  sum(n_risk[9:13]) + sum(M[9:13]) + sum(G[9:13])+ sum(S[9:13])+ sum(R[9:13]) else
+        if(i==4)  sum(n_risk[14:15]) + sum(M[14:15]) + sum(G[14:15])+ sum(S[14:15])+ sum(R[14:15]) else 0
+
+## compute prevalence 
+update(seroprev[]) <- (M[i]+R[i])/(M[i]+G[i]+S[i]+E[i]+R[i])
+
 
 ## Individual probabilities of transition:
 p_mu[] <- 1 - exp(-mu[i] * dt) # mortality
@@ -43,7 +71,7 @@ p[3]   <- (1-p_nonsecretor)*(1-prev)
 m[, ] <- user() # age-structured contact matrix
 c_ij[, ] <- m[i, j] * (I[i] + A[i] * rho + E[i] * rho)
 beta_t <- beta *(1 + w1*cos((2*pi*time)/364 + w2*pi))
-lambda[] <- beta_t * age_beta[i] * sum(c_ij[ ,i])
+lambda[] <- beta_t  * sum(c_ij[ ,i])
 
 ## Draws from binomial distributions for numbers changing between
 ## compartments:
@@ -81,9 +109,9 @@ n_allDeath<-
   sum(n_muR)
 
 # Births to keep stable population equal to deaths
-n_bM[] <- n_allDeath*p[1]*age_select[i]
-n_bG[] <- n_allDeath*p[2]*age_select[i]
-n_bS[] <- n_allDeath*p[3]*age_select[i]
+n_bM[] <- if (i==1) n_allDeath*p[1] else 0 
+n_bG[] <- if (i==1) n_allDeath*p[2] else 0 
+n_bS[] <- if (i==1) n_allDeath*p[3] else 0 
 
 
 # Aging transitions
@@ -95,70 +123,61 @@ i_ij[,] <- aging_mat[i,j]*I[j] * dt
 a_ij[,] <- aging_mat[i,j]*A[j] * dt
 r_ij[,] <- aging_mat[i,j]*R[j] * dt
 
-n_ageM[]<- round(sum(m_ij[i,]))
-n_ageG[]<- round(sum(g_ij[i,]))
-n_ageS[]<- round(sum(s_ij[i,]))
-n_ageE[]<- round(sum(e_ij[i,]))
-n_ageI[]<- round(sum(a_ij[i,]))
-n_ageA[]<- round(sum(i_ij[i,]))
-n_ageR[]<- round(sum(r_ij[i,]))
+n_ageM[]<- round(sum(m_ij[,i]))
+n_ageG[]<- round(sum(g_ij[,i]))
+n_ageS[]<- round(sum(s_ij[,i]))
+n_ageE[]<- round(sum(e_ij[,i]))
+n_ageI[]<- round(sum(i_ij[,i]))
+n_ageA[]<- round(sum(a_ij[,i]))
+n_ageR[]<- round(sum(r_ij[,i]))
 
 
 ## Initial states:
-initial(M_tot) <- sum(M_ini)
-initial(G_tot) <- sum(G_ini)
-initial(S_tot) <- sum(S_ini)
-initial(E_tot) <- sum(E_ini)
-initial(I_tot) <- sum(I_ini)
-initial(A_tot) <- sum(A_ini)
-initial(R_tot) <- sum(R_ini)
+initial(M_tot) <- sum(init[1,])
+initial(G_tot) <- sum(init[2,])
+initial(S_tot) <- sum(init[3,])
+initial(E_tot) <- sum(init[4,])
+initial(I_tot) <- sum(init[5,])
+initial(A_tot) <- sum(init[6,])
+initial(R_tot) <- sum(init[7,])
+initial(infections_tot)<-0
+initial(infections_day)<-0
+initial(reported_wk)<-0
 
-initial(M[]) <- M_ini[i]
-initial(G[]) <- G_ini[i]
-initial(S[]) <- S_ini[i]
-initial(E[]) <- E_ini[i]
-initial(I[]) <- I_ini[i]
-initial(A[]) <- A_ini[i]
-initial(R[]) <- R_ini[i]
+initial(M[]) <- init[1,i]
+initial(G[]) <- init[2,i]
+initial(S[]) <- init[3,i]
+initial(E[]) <- init[4,i]
+initial(I[]) <- init[5,i]
+initial(A[]) <- init[6,i]
+initial(R[]) <- init[7,i]
 initial(cumu_inc[]) <- 0
+initial(seroprev[]) <-0
+initial(n_risk[]) <-init[1,i]+init[2,i]+init[3,i]+init[7,i]
+
 
 ## User defined parameters - default in parentheses:
-M_ini[] <- user()
-G_ini[] <- user()
-S_ini[] <- user()
-E_ini[] <- user()
-I_ini[] <- user()
-A_ini[] <- user()
-R_ini[] <- user()
-age_select[]<-user()
+init[,] <- user()
 
-beta <- user(0.19)   # transm coefficient
+beta <- user(0.046)   # transm coefficient
+repfac<-user(287)    # reported to community factor
 delta <- user(0.04)  # maternal Ab decay
 epsilon <- user(1)   # incubation
 theta <- user(0.5)   # duration symptoms
-sigma <- user(0.066) # duration asymp shedding
-tau   <- user(5.37*10^(-4))     # duration immunity
+sigma <- user(1/15) # duration asymp shedding
+tau   <- user(1/(5.1*365))     # duration immunity
 rho   <- user(0.05) # rel infect asymptomatic 
 p_nonsecretor<-user(0.2) # Fraction immune genetically
-mu[]  <- user()      # mortality rates 
-age_beta[]<-user()   # age-specific infectiousness co factor
-aging_mat[,]<-user() # aging transitions matrix
 w1 <-user(0.15) # sesonality
-w2 <-user(2/12) # sesonality
+w2 <-user(1/12) # sesonality
 pi <-user(3.141593)
 alpha<-user(1)# rel susc in R 
+mu[]  <- user()      # mortality rates 
+aging_mat[,]<-user() # aging transitions matrix
 #
 # dimensions of arrays
 N_age <- user()
-dim(M_ini) <- N_age
-dim(G_ini) <- N_age
-dim(S_ini) <- N_age
-dim(E_ini) <- N_age
-dim(I_ini) <- N_age
-dim(A_ini) <- N_age
-dim(R_ini) <- N_age
-dim(age_select)<-N_age
-dim(age_beta)<-N_age
+dim(init) <-  c(7,N_age)
 dim(aging_mat)<-c(N_age, N_age)
 dim(M) <- N_age
 dim(G) <- N_age
@@ -168,6 +187,8 @@ dim(I) <- N_age
 dim(A) <- N_age
 dim(R) <- N_age
 dim(cumu_inc) <- N_age
+dim(seroprev) <- N_age
+dim(n_risk) <- N_age
 dim(n_muM) <- N_age
 dim(n_muG) <- N_age
 dim(n_muS) <- N_age
