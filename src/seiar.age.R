@@ -60,7 +60,7 @@ p_RA[] <- 1 - exp(-lambda[i] * alpha * dt)
 p_EI   <- 1 - exp(-epsilon * dt) # E to I
 p_IA   <- 1 - exp(-theta * dt) # I to A
 p_AR   <- 1 - exp(-sigma * dt) # A to R
-p_RS   <- 1 - exp(-tau * dt) # R to S
+p_RS   <- 1 - exp(- (1/(tau*365)) * dt) # R to S
 N      <- sum(M) + sum(G)+sum(S)+sum(E)+sum(I)+sum(A)+sum(R)
 prev   <- (I_tot+A_tot+R_tot)/N  
 p[1]   <- (1-p_nonsecretor)*prev
@@ -165,7 +165,7 @@ delta <- user(0.04)  # maternal Ab decay
 epsilon <- user(1)   # incubation
 theta <- user(0.5)   # duration symptoms
 sigma <- user(1/15) # duration asymp shedding
-tau   <- user(1/(5.1*365))     # duration immunity
+tau   <- user(5.1)     # duration immunity
 rho   <- user(0.05) # rel infect asymptomatic 
 p_nonsecretor<-user(0.2) # Fraction immune genetically
 w1 <-user(0.15) # sesonality

@@ -20,7 +20,9 @@ priors <- list(
   mcstate::pmcmc_parameter("w1", mean_hpd["w1"], min = 0),
   mcstate::pmcmc_parameter("w2", mean_hpd["w2"], min = 0),
   mcstate::pmcmc_parameter("delta", mean_hpd["delta"], min = 1),
-  mcstate::pmcmc_parameter("repfac", mean_hpd["repfac"], min = 1)#, prior = function(p)
+  mcstate::pmcmc_parameter("repfac", mean_hpd["repfac"], min = 1),
+  mcstate::pmcmc_parameter("tau", 5.1, min = 0.5)
+  #, prior = function(p)
   #  dnorm(p, mean = 287, sd = 50, log = TRUE))
 )
 
@@ -38,6 +40,7 @@ make_transform <- function(par=params,ini=init) {
       w1    = theta[['w1']],
       w2    = theta[['w2']],
       delta = 1/theta[["delta"]],
+      tau   = theta[["tau"]],
       init  = ini,
       mu    = par$mu,
       m     = c_mat,
@@ -54,12 +57,12 @@ ini<-c(priors[[1]]$mean,
        priors[[3]]$mean,
        priors[[4]]$mean,
        priors[[5]]$mean,
-       priors[[6]]$mean)*0.12
+       priors[[6]]$mean,
+       priors[[7]]$mean)*0.12
 
 
-
-vcv<-cov(thetas)
-#vcv <- diag(ini, 6)
+vcv <- diag(ini, 7)
+vcv[1:6,1:6]<-cov(thetas)
 
 # Create pmcmc parameters
 mcmc_pars <- mcstate::pmcmc_parameters$new(priors, vcv, transform)
