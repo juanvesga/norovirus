@@ -2,7 +2,7 @@
 ## PMCMC
 #############
 # Controls 
-n_steps  <- 5000
+n_steps  <- 10000
 n_burnin <- 200
 n_out    <- 2000
 n_thin   <- 5#round((n_steps-n_burnin)/n_out)
@@ -21,7 +21,7 @@ priors <- list(
   mcstate::pmcmc_parameter("w2", mean_hpd["w2"], min = 0),
   mcstate::pmcmc_parameter("delta", mean_hpd["delta"], min = 1),
   mcstate::pmcmc_parameter("repfac", mean_hpd["repfac"], min = 1),
-  mcstate::pmcmc_parameter("tau", 5.1, min = 0.5)
+  mcstate::pmcmc_parameter("tau", mean_hpd["tau"], min = 0.5)
   #, prior = function(p)
   #  dnorm(p, mean = 287, sd = 50, log = TRUE))
 )
@@ -31,8 +31,10 @@ make_transform <- function(par=params,ini=init) {
   function(theta) {
     
     c_mat<-par$transmission
+    c_mat2<-par$transmission_holi
     
     c_mat[par$infa_id,par$infa_id]<-c_mat[par$infa_id,par$infa_id]*theta[["und5inf"]]
+    c_mat2[par$infa_id,par$infa_id]<-c_mat2[par$infa_id,par$infa_id]*theta[["und5inf"]]
     
     list(
       beta  = theta[["beta"]] ,   # transm coefficient
@@ -44,6 +46,8 @@ make_transform <- function(par=params,ini=init) {
       init  = ini,
       mu    = par$mu,
       m     = c_mat,
+      m_holi= c_mat2,
+      school= as.double(par$school_uk),
       aging_mat= par$aging_mat, 
       N_age = par$N_age)
   }
@@ -61,8 +65,8 @@ ini<-c(priors[[1]]$mean,
        priors[[7]]$mean)*0.12
 
 
-vcv <- diag(ini, 7)
-vcv[1:6,1:6]<-cov(thetas)
+#vcv <- diag(ini, 7)
+vcv<-cov(thetas)
 
 # Create pmcmc parameters
 mcmc_pars <- mcstate::pmcmc_parameters$new(priors, vcv, transform)

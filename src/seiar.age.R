@@ -49,7 +49,7 @@ update(n_risk[]) <- if (step <= (2283/dt)) 0 else
         if(i==4)  sum(n_risk[14:15]) + sum(M[14:15]) + sum(G[14:15])+ sum(S[14:15])+ sum(R[14:15]) else 0
 
 ## compute prevalence 
-update(seroprev[]) <- (M[i]+R[i])/(M[i]+G[i]+S[i]+E[i]+R[i])
+update(seroprev[]) <- (M[i]+R[i]+A[i])/(M[i]+G[i]+S[i]+E[i]+A[i]+R[i])
 
 
 ## Individual probabilities of transition:
@@ -68,51 +68,22 @@ p[2]   <- p_nonsecretor
 p[3]   <- (1-p_nonsecretor)*(1-prev) 
 
 ## Force of infection
+#sch <- school[as.integer(step) + 1] 
+  
+  # if (as.integer(step) >= n_hivrate_steps)
+  # hivrate_step[n_hivrate_steps]*
+  # (1- (as.integer(step)-n_hivrate_steps) * p_hivrate_decay) else 
+  #   hivrate_step[as.integer(step) + 1] 
+
+
 m[, ] <- user() # age-structured contact matrix
-c_ij[, ] <- m[i, j] * (I[i] + A[i] * rho + E[i] * rho)
-beta_t <- beta *(1 + w1*cos((2*pi*time)/364 + w2*pi))
-lambda[] <- beta_t  * sum(c_ij[ ,i])
+m_holi[,]<-user()
 
-## Draws from binomial distributions for numbers changing between
-## compartments:
+c_ij[, ] <- (I[i] + A[i] * rho + E[i] * rho) * 
+if (school[as.integer(step)]==1) m[i, j] else m_holi[i, j]
 
-n_muG[] <- rbinom(G[i], p_mu[i])
-
-n_MS[] <- rbinom(M[i], p_MS[i])
-n_muM[]<- rbinom(M[i]-n_MS[i], p_mu[i])
-
-n_SE[] <- rbinom(S[i], sum(p_SE[i]))
-n_muS[]<- rbinom(S[i]-n_SE[i], p_mu[i])
-
-n_EI[] <- rbinom(E[i], p_EI)
-n_muE[]<- rbinom(E[i]-n_EI[i], p_mu[i])
-
-n_IA[] <- rbinom(I[i], p_IA)
-n_muI[]<- rbinom(I[i]-n_IA[i], p_mu[i])
-
-n_AR[] <- rbinom(A[i], p_AR)
-n_muA[]<- rbinom(A[i]-n_AR[i], p_mu[i])
-
-n_RA[] <- rbinom(R[i], sum(p_RA[i]))
-n_RS[] <- rbinom(R[i]- n_RA[i], p_RS)
-n_muR[]<- rbinom(R[i]-n_RS[i]- n_RA[i], p_mu[i])
-
-
-
-n_allDeath<- 
-  sum(n_muM) + 
-  sum(n_muG)+
-  sum(n_muS)+
-  sum(n_muE)+
-  sum(n_muI)+
-  sum(n_muA)+
-  sum(n_muR)
-
-# Births to keep stable population equal to deaths
-n_bM[] <- if (i==1) n_allDeath*p[1] else 0 
-n_bG[] <- if (i==1) n_allDeath*p[2] else 0 
-n_bS[] <- if (i==1) n_allDeath*p[3] else 0 
-
+#beta_t <- beta *(1 + w1*cos((2*pi*time)/364 + w2*pi))
+lambda[] <- beta  * sum(c_ij[ ,i])
 
 # Aging transitions
 m_ij[,] <- aging_mat[i,j]*M[j] * dt
@@ -130,6 +101,46 @@ n_ageE[]<- round(sum(e_ij[,i]))
 n_ageI[]<- round(sum(i_ij[,i]))
 n_ageA[]<- round(sum(a_ij[,i]))
 n_ageR[]<- round(sum(r_ij[,i]))
+
+
+## Draws from binomial distributions for numbers changing between
+## compartments:
+
+n_muG[] <- rbinom(G[i]-n_ageG[i], p_mu[i])
+
+n_muM[]<- rbinom(M[i]-n_ageM[i], p_mu[i])
+n_MS[] <- rbinom(M[i]-n_ageM[i]-n_muM[i],p_MS[i])
+
+n_muS[]<- rbinom(S[i]-n_ageS[i], p_mu[i])
+n_SE[] <- rbinom(S[i]-n_ageS[i]-n_muS[i], sum(p_SE[i]))
+
+n_muE[]<- rbinom(E[i]-n_ageE[i], p_mu[i])
+n_EI[] <- rbinom(E[i]-n_ageE[i]-n_muE[i], p_EI)
+
+n_muI[]<- rbinom(I[i]-n_ageI[i], p_mu[i])
+n_IA[] <- rbinom(I[i]-n_ageI[i]-n_muI[i], p_IA)
+
+n_muA[]<- rbinom(A[i]-n_ageA[i], p_mu[i])
+n_AR[] <- rbinom(A[i]-n_ageA[i]-n_muA[i], p_AR)
+
+n_muR[]<- rbinom(R[i]-n_ageR[i], p_mu[i])
+n_RA[] <- rbinom(R[i]-n_ageR[i]-n_muR[i], sum(p_RA[i]))
+n_RS[] <- rbinom(R[i]-n_ageR[i]-n_muR[i]-n_RA[i], p_RS)
+
+
+n_allDeath<- 
+  sum(n_muM) + 
+  sum(n_muG)+
+  sum(n_muS)+
+  sum(n_muE)+
+  sum(n_muI)+
+  sum(n_muA)+
+  sum(n_muR)
+
+# Births to keep stable population equal to deaths
+n_bM[] <- if (i==1) n_allDeath*p[1] else 0 
+n_bG[] <- if (i==1) n_allDeath*p[2] else 0 
+n_bS[] <- if (i==1) n_allDeath*p[3] else 0 
 
 
 ## Initial states:
@@ -174,9 +185,11 @@ pi <-user(3.141593)
 alpha<-user(1)# rel susc in R 
 mu[]  <- user()      # mortality rates 
 aging_mat[,]<-user() # aging transitions matrix
+school[]<-user()
 #
 # dimensions of arrays
 N_age <- user()
+dim(school)<-user()
 dim(init) <-  c(7,N_age)
 dim(aging_mat)<-c(N_age, N_age)
 dim(M) <- N_age
@@ -227,6 +240,7 @@ dim(p_RA) <- N_age
 dim(p)   <- 3
 dim(mu)<-N_age
 dim(m) <- c(N_age, N_age)
+dim(m_holi) <- c(N_age, N_age)
 dim(c_ij) <- c(N_age, N_age)
 dim(lambda) <- N_age
 
