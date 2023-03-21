@@ -1,7 +1,7 @@
 ## Compare 
 compare <- function(state, observed, pars = NULL) {
   exp_noise <- 1e6
-  
+ 
   # Incidence rates per 1000 py
   modelled_irate <-rbind(
     1000*(state['cumu_inc1',]/(state['n_age1',]/365)) + rexp(n = length(state['cumu_inc1',]), rate = exp_noise),

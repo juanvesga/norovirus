@@ -87,7 +87,7 @@ mort_rates<-read.csv(here("data",paste("mortality_MLE",".csv",sep = "")))
 
 # Load polymod
 
-# In this example we use 10 age bands 
+# we use 10 age bands 
 ages   <-  c(1,2,3,4,5,6,7,15,25,35,45,55,65,75,100) # Upper end of age bands
 adults <-  seq(tail(which(ages<=5),1),length(ages),1) 
 infa_id<- which(ages<=5)
@@ -133,8 +133,16 @@ cont_w_infants<-
 data(polymod, package = "socialmixr") # POLYMOD for all other contacts
 contact = contact_matrix(
   polymod, countries = "United Kingdom", 
-  age.limits = c(0,as.numeric(as.character(age.categories[1:(length(ages)-1)]))), 
+  age.limits = c(0,as.numeric(as.character(age.categories[1:(length(ages)-1)]))),
   symmetric = TRUE)
+
+contact_holi = contact_matrix(
+  polymod, countries = "United Kingdom", 
+  age.limits = c(0,as.numeric(as.character(age.categories[1:(length(ages)-1)]))),
+  filter = list(cnt_school=0),
+  symmetric = TRUE)
+
+
 
 # replace with vanHoek infants matrix
 if(vanHoek==TRUE){
@@ -153,8 +161,29 @@ pop = rep(contact$demography$population) # Population numbers (using per 100K)
 transmission <- contact$matrix /
   rep(contact$demography$population, each = ncol(contact$matrix))
 
+transmission_holi <- contact_holi$matrix /
+  rep(contact$demography$population, each = ncol(contact$matrix))
 
+# UK holiday schedule 
+school_sche<- read.csv(here("data","uk_holidays.csv"), header=TRUE)#, sep=,)
 
+id<-which(school_sche$Date=="28-Feb")
+school_year<-school_sche$School
+val<-school_year[id]
+school_year_leap <-c(school_year[1:id],            # Applying rbind function
+                   val,
+                   school_year[- (1:id)])
+
+# School year vector accounting for leap years (2004 & 2008)
+school_uk<-c(
+  school_year, school_year, # 2002, 2003
+  school_year_leap,         # 2004
+  school_year, school_year, school_year, # 2005-2007
+  school_year_leap,         # 2008
+  school_year, school_year, school_year # 2009-2011
+)
+
+#plot(days_vec,school_uk,type = "l", xlim = as.Date(c("2002-01-01","2002-12-31")))
 ########## Model parameters ##############################################
 params<-list(
   
@@ -163,6 +192,8 @@ age.categories = age.categories,
 contact = contact,
 pop = pop,
 transmission =transmission,
+transmission_holi=transmission_holi,
+school_uk=school_uk,
 N_age = length(ages),
 age_select= c(1,seq(2,length(ages),1)*0),
 beta = 0.05,   # transm coefficient

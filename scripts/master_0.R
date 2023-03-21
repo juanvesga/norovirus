@@ -30,13 +30,13 @@ filter <- mcstate::particle_filter$new(data_all, model = seiar, n_particles = 10
 # 4 run  pMCMC
 source(here("scripts","pMCMC_1.R"))
 
-# or 
+
 
 ## Load pre-saved samples
 load(here("output","processed_samples.RData"))
 
 ###########
-# plot model fits 
+# 5 plot model fits 
 source(here("scripts","plot_model_fits.R"))
 
 
