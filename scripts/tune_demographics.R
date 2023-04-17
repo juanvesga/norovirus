@@ -14,7 +14,7 @@ library(ggmatplot)
 # Source scripts
 vanHoek<-FALSE
 
-source(here("src","setup.model.R"))
+source(here("scripts","setup.model.R"))
 source(here("src","model_functions.R"))
 seiar <- odin.dust::odin_dust("src/seiar.age.R")
 
