@@ -1,14 +1,27 @@
 ## Compare 
 compare <- function(state, observed, pars = NULL) {
   exp_noise <- 1e6
+
+ pop1<-sum(pars$pop[1:4])
+ pop2<-sum(pars$pop[5:8])
+ pop3<-sum(pars$pop[9:13])
+ pop4<-sum(pars$pop[14])
+ 
+ noise<-rexp(n = length(state['cases_year1',]), rate = exp_noise)
+
+ modelled_irate <-rbind(
+ 1000*(state['cases_year1',]/pop1) + noise,
+ 1000*(state['cases_year2',]/pop2) + noise,
+ 1000*(state['cases_year3',]/pop3) + noise,
+ 1000*(state['cases_year4',]/pop4) + noise)
  
   # Incidence rates per 1000 py
-  modelled_irate <-rbind(
-    1000*(state['cumu_inc1',]/(state['n_age1',]/365)) + rexp(n = length(state['cumu_inc1',]), rate = exp_noise),
-    1000*(state['cumu_inc2',]/(state['n_age2',]/365))+ rexp(n = length(state['cumu_inc1',]), rate = exp_noise),
-    1000*(state['cumu_inc3',]/(state['n_age3',]/365))+ rexp(n = length(state['cumu_inc1',]), rate = exp_noise),
-    1000*(state['cumu_inc4',]/(state['n_age4',]/365))+ rexp(n = length(state['cumu_inc1',]), rate = exp_noise))
-  
+   # modelled_irate <-rbind(
+   #   1000*(state['cumu_inc1',]/(state['n_age1',]/365)) + rexp(n = length(state['cumu_inc1',]), rate = exp_noise),
+   #   1000*(state['cumu_inc2',]/(state['n_age2',]/365))+ rexp(n = length(state['cumu_inc1',]), rate = exp_noise),
+   #   1000*(state['cumu_inc3',]/(state['n_age3',]/365))+ rexp(n = length(state['cumu_inc1',]), rate = exp_noise),
+   #   1000*(state['cumu_inc4',]/(state['n_age4',]/365))+ rexp(n = length(state['cumu_inc1',]), rate = exp_noise))
+   # 
   observations_irate <-rbind(
     observed$cases_a1,
     observed$cases_a2,
@@ -17,22 +30,42 @@ compare <- function(state, observed, pars = NULL) {
   ) 
   llk_irate<-colSums(dpois(x = observations_irate, lambda = modelled_irate, log = TRUE),na.rm=TRUE)
 
-  # Weekly cases reported 
-
-  modelled_report<-state['reported_wk',]
+  # # Weekly cases reported 0-4
+  # 
+  # modelled_report<-state['reported_wk0_4',]
+  # observations_reported<-observed$reported_04
+  # llk_reported_04<-dpois(x = observations_reported, 
+  #                             lambda = modelled_report, log = TRUE)
+  # 
+  # # Weekly cases reported 5-65
+  # 
+  # modelled_report<-state['reported_wk5_65',]
+  # observations_reported<-observed$reported_65
+  # llk_reported_65<-dpois(x = observations_reported, 
+  #                     lambda = modelled_report, log = TRUE)
+  # 
+  # # Weekly cases reported 65+
+  # 
+  # modelled_report<-state['reported_wk65_p',]
+  # observations_reported<-observed$reported_65p
+  # llk_reported_65p<-dpois(x = observations_reported, 
+  #                     lambda = modelled_report, log = TRUE)
+  # 
+  # Weekly cases reported 65+
+  
+  modelled_report<-state['reported_wk',]+ noise
   observations_reported<-observed$reported
   llk_reported<-dpois(x = observations_reported, 
-                              lambda = modelled_report, log = TRUE)
-  
+                          lambda = modelled_report, log = TRUE)
   
   # Seroprevalence in children 1 to 7
   modelled_sero<-rbind(
-    state['seroprev1.2',],
-    state['seroprev2.3',],
-    state['seroprev3.4',],
-    state['seroprev4.5',],
-    state['seroprev5.6',],
-    state['seroprev6.7',]
+    state['seroprev1.2',]+ noise,
+    state['seroprev2.3',]+ noise,
+    state['seroprev3.4',]+ noise,
+    state['seroprev4.5',]+ noise,
+    state['seroprev5.6',]+ noise,
+    state['seroprev6.7',]+ noise
     )
 
   observed_event<-rbind(
@@ -57,20 +90,25 @@ compare <- function(state, observed, pars = NULL) {
                            size = observed_size,
                            prob = modelled_sero,
                            log = TRUE),na.rm = TRUE)
+  
+  
+  posterior<-colSums(rbind(llk_irate,
+                           llk_reported,
+                           # llk_reported_04,
+                           # llk_reported_65,
+                           # llk_reported_65p,
+                           llk_sero),na.rm=T)
+ # print(posterior)
 
-  return(colSums(rbind(llk_irate,llk_reported,llk_sero),na.rm=T))
+  return(posterior)
   
 }
 
 index <- function(info) {
-  list(run = c(cumu_inc1 = info$index$cumu_inc[1],
-               cumu_inc2 = info$index$cumu_inc[2],
-               cumu_inc3 = info$index$cumu_inc[3],
-               cumu_inc4 = info$index$cumu_inc[4],
-               n_age1    = info$index$n_risk[1],
-               n_age2    = info$index$n_risk[2],
-               n_age3    = info$index$n_risk[3],
-               n_age4    = info$index$n_risk[4],
+  list(run = c(cases_year1 = info$index$cases_year[1],
+               cases_year2 = info$index$cases_year[2],
+               cases_year3 = info$index$cases_year[3],
+               cases_year4 = info$index$cases_year[4],
                reported_wk = info$index$reported_wk,
                seroprev1.2 = info$index$seroprev[2],
                seroprev2.3 = info$index$seroprev[3],
@@ -78,18 +116,16 @@ index <- function(info) {
                seroprev4.5 = info$index$seroprev[5],
                seroprev5.6 = info$index$seroprev[6],
                seroprev6.7 = info$index$seroprev[7]
+               
+               
                ),
        state = c(
          t = info$index$time,
          inc_day = info$index$infections_day,
-         cumu_inc1 = info$index$cumu_inc[1],
-         cumu_inc2 = info$index$cumu_inc[2],
-         cumu_inc3 = info$index$cumu_inc[3],
-         cumu_inc4 = info$index$cumu_inc[4],
-         n_age1    = info$index$n_risk[1],
-         n_age2    = info$index$n_risk[2],
-         n_age3    = info$index$n_risk[3],
-         n_age4    = info$index$n_risk[4],
+         cases_year1 = info$index$cases_year[1],
+         cases_year2 = info$index$cases_year[2],
+         cases_year3 = info$index$cases_year[3],
+         cases_year4 = info$index$cases_year[4],
          reported_wk = info$index$reported_wk,
          seroprev1.2 = info$index$seroprev[2],
          seroprev2.3 = info$index$seroprev[3],
@@ -97,6 +133,7 @@ index <- function(info) {
          seroprev4.5 = info$index$seroprev[5],
          seroprev5.6 = info$index$seroprev[6],
          seroprev6.7 = info$index$seroprev[7]
+         
        )
   )
 }
@@ -167,7 +204,6 @@ plot_fits<-function(sims,data){
          code=3, angle=90, length=0.1)
   points(sero_obs , pch = 19, col = "red")
   
-   
 }
 
 
@@ -180,7 +216,11 @@ run_demog_model<-function(mu, ini=init, p=params, times=365*5, seiar_inst=seiar)
   n_particles <- 1L
   c_mat<-p$transmission
   c_mat[p$infa_id,p$infa_id]<-c_mat[p$infa_id,p$infa_id]*p$und5inf
- 
+  
+  c_mat2<-p$transmission_holi
+  c_mat2[p$infa_id,p$infa_id]<-c_mat2[p$infa_id,p$infa_id]*p$und5inf
+  
+  
   mort<-c(mu)/10000
   
   pars = list(
@@ -189,10 +229,12 @@ run_demog_model<-function(mu, ini=init, p=params, times=365*5, seiar_inst=seiar)
     rho   = p$rho, # rel infect asymptomatic 
     init  = ini,
     mu    = mort/365,
-    m = c_mat,
+    m     = c_mat,
+    m_holi= c_mat2,
     aging_mat= p$aging_mat, 
     N_age = p$N_age,
-    w1 = p$w1)
+    w1 = p$w1,
+    school= as.double(p$school_uk))
   
 
   model <- seiar_inst$new(pars, 0, 1)

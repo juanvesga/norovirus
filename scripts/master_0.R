@@ -19,11 +19,12 @@ source(here("src","model_functions.R"))
 
 #############
 # 2 Create dust object 
-seiar <- odin.dust::odin_dust("src/seiar.age.R")
+model_path<-here("src","seiar.age.R")
+seiar <- odin.dust::odin_dust(model_path)
 
 #############
 # 3 Create filter 
-filter <- mcstate::particle_filter$new(data_all, model = seiar, n_particles = 10,
+filter <- mcstate::particle_filter$new(data_all, model = seiar, n_particles = 30,
                                        compare = compare, index = index)
 
 ###########
