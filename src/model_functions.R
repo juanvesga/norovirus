@@ -1,3 +1,48 @@
+## make transform
+# Create params transformation function
+make_transform <- function(c_mat,
+                           c_mat2, 
+                           adult_id, 
+                           mu, 
+                           school,
+                           n_school_steps,
+                           n_age,
+                           aging_mat,
+                           ini,
+                           pop,
+                           scaling_fac) {
+  
+  function(theta) {
+    
+    theta_back<-c(
+      beta = theta[["beta"]]/scaling_fac[["beta"]],
+      aduRR = theta[["aduRR"]]/scaling_fac[["aduRR"]],
+      delta = theta[["delta"]]/scaling_fac[["delta"]],
+      rho = theta[["rho"]]/scaling_fac[["rho"]],
+      tau = theta[["tau"]]/scaling_fac[["tau"]],
+      w1 = theta[["w1"]]/scaling_fac[["w1"]],
+      repfac=theta[["repfac"]]/scaling_fac[["repfac"]]
+    )
+    
+    # c_mat[adult_id,adult_id]<-c_mat[adult_id,adult_id]* theta_back[["aduRR"]]
+    # c_mat2[adult_id,adult_id]<-c_mat2[adult_id,adult_id]* theta_back[["aduRR"]]
+    # 
+    c(list(
+      pop  = pop,
+      init  = ini,
+      mu    = mu,
+      m     = c_mat,
+      m_holi= c_mat2,
+      school_step= as.double(school),
+      n_school_steps=n_school_steps,
+      N_age = n_age,
+      aging_mat = aging_mat ),
+      as.list(theta_back))
+  }
+}
+
+
+
 ## Compare 
 compare <- function(state, observed, pars = NULL) {
   exp_noise <- 1e6
@@ -9,24 +54,27 @@ compare <- function(state, observed, pars = NULL) {
  
  noise<-rexp(n = length(state['cases_year1',]), rate = exp_noise)
 
- modelled_irate <-rbind(
- 1000*(state['cases_year1',]/pop1) + noise,
- 1000*(state['cases_year2',]/pop2) + noise,
- 1000*(state['cases_year3',]/pop3) + noise,
- 1000*(state['cases_year4',]/pop4) + noise)
+ # modelled_irate <-rbind(
+ # 1000*(state['cases_year1',]/pop1) + noise,
+ # 1000*(state['cases_year2',]/pop2) + noise,
+ # 1000*(state['cases_year3',]/pop3) + noise,
+ # 1000*(state['cases_year4',]/pop4) + noise)
  
   # Incidence rates per 1000 py
-   # modelled_irate <-rbind(
-   #   1000*(state['cumu_inc1',]/(state['n_age1',]/365)) + rexp(n = length(state['cumu_inc1',]), rate = exp_noise),
-   #   1000*(state['cumu_inc2',]/(state['n_age2',]/365))+ rexp(n = length(state['cumu_inc1',]), rate = exp_noise),
-   #   1000*(state['cumu_inc3',]/(state['n_age3',]/365))+ rexp(n = length(state['cumu_inc1',]), rate = exp_noise),
-   #   1000*(state['cumu_inc4',]/(state['n_age4',]/365))+ rexp(n = length(state['cumu_inc1',]), rate = exp_noise))
-   # 
+   modelled_irate <-rbind(
+     1000*(state['cases_year1',]/(state['person_year1',]/365)) + noise,
+     1000*(state['cases_year2',]/(state['person_year2',]/365)) + noise,
+     1000*(state['cases_year3',]/(state['person_year3',]/365)) + noise,
+     1000*(state['cases_year4',]/(state['person_year4',]/365)) + noise,
+     1000*(state['cases_year5',]/(state['person_year5',]/365)) + noise)
+   
+   
   observations_irate <-rbind(
     observed$cases_a1,
     observed$cases_a2,
     observed$cases_a3,
-    observed$cases_a4
+    observed$cases_a4,
+    observed$cases_a5
   ) 
   llk_irate<-colSums(dpois(x = observations_irate, lambda = modelled_irate, log = TRUE),na.rm=TRUE)
 
@@ -97,9 +145,10 @@ compare <- function(state, observed, pars = NULL) {
                            # llk_reported_04,
                            # llk_reported_65,
                            # llk_reported_65p,
-                           llk_sero),na.rm=T)
+                           llk_sero
+                           ),na.rm=T)
  # print(posterior)
-
+  
   return(posterior)
   
 }
@@ -109,6 +158,12 @@ index <- function(info) {
                cases_year2 = info$index$cases_year[2],
                cases_year3 = info$index$cases_year[3],
                cases_year4 = info$index$cases_year[4],
+               cases_year5 = info$index$cases_year[5],
+               person_year1 = info$index$person_year[1],
+               person_year2 = info$index$person_year[2],
+               person_year3 = info$index$person_year[3],
+               person_year4 = info$index$person_year[4],
+               person_year5 = info$index$person_year[5],
                reported_wk = info$index$reported_wk,
                seroprev1.2 = info$index$seroprev[2],
                seroprev2.3 = info$index$seroprev[3],
@@ -126,6 +181,12 @@ index <- function(info) {
          cases_year2 = info$index$cases_year[2],
          cases_year3 = info$index$cases_year[3],
          cases_year4 = info$index$cases_year[4],
+         cases_year5 = info$index$cases_year[5],
+         person_year1 = info$index$person_year[1],
+         person_year2 = info$index$person_year[2],
+         person_year3 = info$index$person_year[3],
+         person_year4 = info$index$person_year[4],
+         person_year5 = info$index$person_year[5],
          reported_wk = info$index$reported_wk,
          seroprev1.2 = info$index$seroprev[2],
          seroprev2.3 = info$index$seroprev[3],
@@ -215,10 +276,10 @@ run_demog_model<-function(mu, ini=init, p=params, times=365*5, seiar_inst=seiar)
   
   n_particles <- 1L
   c_mat<-p$transmission
-  c_mat[p$infa_id,p$infa_id]<-c_mat[p$infa_id,p$infa_id]*p$und5inf
+  c_mat[p$infa_id,p$infa_id]<-c_mat[p$infa_id,p$infa_id]*p$aduRR
   
   c_mat2<-p$transmission_holi
-  c_mat2[p$infa_id,p$infa_id]<-c_mat2[p$infa_id,p$infa_id]*p$und5inf
+  c_mat2[p$infa_id,p$infa_id]<-c_mat2[p$infa_id,p$infa_id]*p$aduRR
   
   
   mort<-c(mu)/10000
@@ -284,7 +345,7 @@ run_model<-function(pars, times, seiar=model.seiar){
   i.ini[2]<-seed
   mort.rates<- pars$mu
   c_mat<-pars$transmission
-  c_mat[pars$infa_id,pars$infa_id]<-c_mat[pars$infa_id,pars$infa_id]*pars$und5inf
+  c_mat[pars$infa_id,pars$infa_id]<-c_mat[pars$infa_id,pars$infa_id]*pars$aduRR
 
   model <- seiar$new(pars = list(dt = dt,
                                    M_ini= pars$contact$demography$population*0,
@@ -361,7 +422,7 @@ get_output<-function(theta,pars, ntimes, seiar=model.seiar){
   for (jj in 1:nruns) {
    
   pars$beta<-theta[['beta']][jj]
-  pars$und5inf<-theta[['und5inf']][jj]
+  pars$aduRR<-theta[['aduRR']][jj]
   
   sim<-run_model(pars,ntimes, seiar)
   

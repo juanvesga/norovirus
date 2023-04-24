@@ -31,11 +31,10 @@ fulldata_iid2$CI_upper<-as.numeric(fulldata_iid2$CI_upper)
 # head(data_iid2)
 
 data_iid2.c4<-fulldata_iid2 %>%
-  filter (age_cat!="0 to 1") %>%
-  filter (age_cat!="1 to 5")
+  filter (age_cat!="5-") 
   
 data_iid2.c4$age_cat<- factor(data_iid2.c4$age_cat, 
-                               levels = c("5-","5 to 15","15 to 64","65+"))
+                               levels = c("0 to 1","1 to 5","5 to 15","15 to 64","65+"))
 
 data_iid2.c4<-data_iid2.c4[order(data_iid2.c4$age_cat),]
 
@@ -138,6 +137,7 @@ d <- data.frame(
   cases_a2 = c(round(data_iid2.c4$per1000personyears[2]),rep(NA,nrow(agg_synth)),NA),
   cases_a3 = c(round(data_iid2.c4$per1000personyears[3]),rep(NA,nrow(agg_synth)),NA),
   cases_a4 = c(round(data_iid2.c4$per1000personyears[4]),rep(NA,nrow(agg_synth)),NA),
+  cases_a5 = c(round(data_iid2.c4$per1000personyears[5]),rep(NA,nrow(agg_synth)),NA),
   reported = c(NA,agg_synth$count_cases,NA),
   sero1    = c(NA,rep(NA,nrow(agg_synth)),sero$V1[1]), 
   sero2    = c(NA,rep(NA,nrow(agg_synth)),sero$V1[2]),
@@ -169,7 +169,8 @@ ages   <-  c(1,2,3,4,5,6,7,15,25,35,45,55,65,75) # Upper end of age bands
 #ages   <-  seq(1,75,1) # Upper end of age bands
 age_sq <- ages-1
 adults <-  seq(tail(which(ages<=5),1),length(ages),1) 
-infa_id<- which(ages<=7 & ages > 2)
+infa_id<- which(ages<5)
+adult_id<-which(ages>=15)
 da <- diff(c(0,ages))
 
 # find diagonal matrix for aging transitions
@@ -286,7 +287,7 @@ rho   = 0.05, # rel infect asymptomatic
 p_nonsecretor=0.2, # Fraction immune genetically
 mu    = mort_rates$x/365,
 age_beta = 1+(seq(1,length(ages),1)*0),
-adults_id = adults,# indices for adult groups 
+adult_id = adult_id,# indices for adult groups 
 infa_id=infa_id,
 und5inf=8, # cofactor of infectiousness for under 5
 repfac= 287,# factor to amplify reported to community
@@ -296,8 +297,16 @@ w2 = 2.2/12, #
 alpha = 1, # relative suscept in R compartment 
 # simulation
 dt=1,
-index_idd2=index_idd2
-
+index_idd2=index_idd2,
+scaling_fac=list(
+  beta = 1000,
+  aduRR = 100,
+  delta = 1,
+  rho = 1000,
+  tau = 10,
+  w1 = 100,
+  repfac=0.25
+)
 )
 
 # Initial conditions of the model (M,G,S,E,I,A,R) x age cats
