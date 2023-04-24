@@ -23,7 +23,7 @@ update(infections_day) <- sum(n_EI)
 
 # Weekly reported cases (match sgss)
 update(reported_wk) <- if (step %% steps_per_week == 0)
-  sum(n_EI)*(1/repfac) else  (1/repfac)*(reported_wk + sum(n_EI)) 
+  sum(n_EI)*(1/repfac) else reported_wk + sum(n_EI)*(1/repfac) 
 
 # # Weekly reported cases in under 4 (match sgss)
 # update(reported_wk0_4) <- if (step %% steps_per_week == 0)
@@ -47,26 +47,35 @@ update(reported_wk) <- if (step %% steps_per_week == 0)
 # 
 
 update(cases_year[]) <- if (step %% steps_per_year==0)
-  (if(i==1)  sum(n_EI[1:4]) else
-    if(i==2)  sum(n_EI[5:8])  else 
-      if (i==3)  sum(n_EI[9:13])  else
+  (if(i==1)  sum(n_EI[1]) else
+    if(i==2)  sum(n_EI[2:4])  else 
+     if(i==3)  sum(n_EI[5:8])  else 
+      if (i==4)  sum(n_EI[9:13])  else
          sum(n_EI[14]) ) else
-          (if(i==1)  cases_year[1] + sum(n_EI[1:4]) else
-            if(i==2) cases_year[2] + sum(n_EI[5:8])  else 
-              if (i==3)  cases_year[3] +sum(n_EI[9:13])  else
-                cases_year[4] + sum(n_EI[14]) )
+          (if(i==1)  cases_year[1] + sum(n_EI[1]) else
+            if(i==2)  cases_year[2] + sum(n_EI[2:4]) else
+              if(i==3) cases_year[3] + sum(n_EI[5:8])  else 
+              if (i==4)  cases_year[4] +sum(n_EI[9:13])  else
+                cases_year[5] + sum(n_EI[14]) )
                   
 
 
 ## compute at risk population ( match IDD2 data)
-# update(n_risk[]) <- if (step <= (as.integer(index_idd2)/dt)) 0 else 
-#   if(i==1)  sum(n_risk[1:4]) + sum(M[1:4]) + sum(G[1:4])+ sum(S[1:4])+ sum(R[1:4]) else
-#     if(i==2)  sum(n_risk[5:8]) + sum(M[5:8]) + sum(G[5:8])+ sum(S[5:8])+ sum(R[5:8]) else
-#       if(i==3)  sum(n_risk[9:13]) + sum(M[9:13]) + sum(G[9:13])+ sum(S[9:13])+ sum(R[9:13]) else
-#         if(i==4)  sum(n_risk[14]) + sum(M[14]) + sum(G[14])+ sum(S[14])+ sum(R[14]) else 0
+update(person_year[]) <- if (step %% steps_per_year==0)
+  (if(i==1)  sum(M[1])+sum(G[1])+sum(S[1])+sum(E[1])+sum(A[1])+sum(R[1]) else
+    if(i==2)  sum(M[2:4])+sum(G[2:4])+sum(S[2:4])+sum(E[2:4])+sum(A[2:4])+sum(R[2:4])  else 
+      if(i==3)  sum(M[5:8])+sum(G[5:8])+sum(S[5:8])+sum(E[5:8])+sum(A[5:8])+sum(R[5:8])  else 
+      if (i==4)  sum(M[9:13])+sum(G[9:13])+sum(S[9:13])+sum(E[9:13])+sum(A[9:13])+sum(R[9:13])  else
+        sum(M[14])+sum(G[14])+sum(S[14])+sum(E[14])+sum(A[14])+sum(R[14]) ) else
+          (if(i==1)  person_year[1] + sum(M[1])+sum(G[1])+sum(S[1])+sum(E[1])+sum(A[1])+sum(R[1]) else
+            if(i==2) person_year[2] + sum(M[2:4])+sum(G[2:4])+sum(S[2:4])+sum(E[2:4])+sum(A[2:4])+sum(R[2:4])   else 
+             if(i==3) person_year[3] + sum(M[5:8])+sum(G[5:8])+sum(S[5:8])+sum(E[5:8])+sum(A[5:8])+sum(R[5:8])   else 
+              if (i==4)  person_year[4] + sum(M[9:13])+sum(G[9:13])+sum(S[9:13])+sum(E[9:13])+sum(A[9:13])+sum(R[9:13])  else
+                person_year[5] + sum(M[14])+sum(G[14])+sum(S[14])+sum(E[14])+sum(A[14])+sum(R[14]) )
+
 
 ## compute prevalence 
-update(seroprev[]) <- (M[i]+R[i]+A[i])/(M[i]+G[i]+S[i]+E[i]+A[i]+R[i])
+update(seroprev[]) <- (R[i]+M[i])/(M[i]+G[i]+S[i]+E[i]+I[i]+A[i]+R[i])
 
 
 
@@ -77,7 +86,8 @@ p_MS[] <- 1 - exp(-(1/delta) * dt)  # M to S
 p_SE[] <- 1 - exp(-lambda[i] * dt) # S to E
 p_RA[] <- 1 - exp(-lambda[i] * (1-alpha) * dt)
 p_EI   <- 1 - exp(-(1/epsilon) * dt) # E to I
-p_IA   <- 1 - exp(-(1/theta) * dt) # I to A
+p_IA_5    <- 1 - exp(-(1/theta_5) * dt) # I to A
+p_IA_5p   <- 1 - exp(-(1/theta_5p) * dt) # I to A
 p_AR   <- 1 - exp(-(1/sigma) * dt) # A to R
 p_RS   <- 1 - exp(- (1/(tau*365)) * dt) # R to S
 N      <- sum(M) + sum(G)+sum(S)+sum(E)+sum(I)+sum(A)+sum(R)
@@ -137,7 +147,7 @@ n_muE[]<- rbinom(E[i], p_mu[i])
 n_EI[] <- rbinom(E[i]-n_muE[i], p_EI)
 
 n_muI[]<- rbinom(I[i], p_mu[i])
-n_IA[] <- rbinom(I[i]-n_muI[i], p_IA)
+n_IA[] <- rbinom(I[i]-n_muI[i], if (i<=5)p_IA_5 else p_IA_5p )
 
 n_muA[]<- rbinom(A[i], p_mu[i])
 n_AR[] <- rbinom(A[i]-n_muA[i], p_AR)
@@ -179,6 +189,7 @@ initial(A[]) <- init[6,i]
 initial(R[]) <- init[7,i]
 #initial(cumu_inc[]) <- 0
 initial(cases_year[]) <- 0
+initial(person_year[]) <- 0
 initial(seroprev[]) <-0
 #initial(n_risk[]) <-init[1,i]+init[2,i]+init[3,i]+init[7,i]
 #initial(aux)<-0
@@ -192,7 +203,8 @@ repfac<-user(287)    # reported to community factor
 repfac_65p<-user(287)
 delta <- user(0.04)  # maternal Ab decay
 epsilon <- user(1)   # incubation
-theta <- user(2)   # duration symptoms
+theta_5 <- user(2.5)   # duration symptoms
+theta_5p <- user(1.5)   # duration symptoms
 sigma <- user(15) # duration asymp shedding
 tau   <- user(5.1)     # duration immunity
 rho   <- user(0.05) # rel infect asymptomatic 
@@ -221,7 +233,8 @@ dim(A) <- N_age
 dim(R) <- N_age
 #dim(cumu_inc) <- N_age
 dim(seroprev) <- N_age
-dim(cases_year)<- 4
+dim(cases_year)<- 5
+dim(person_year)<- 5
 #dim(n_risk) <- N_age
 dim(n_muM) <- N_age
 dim(n_muG) <- N_age
