@@ -12,15 +12,17 @@ library(profvis)
 library(lubridate)
 #################################
 # 1 Source scripts
-vanHoek<-FALSE
+
+source(here("scripts","load_data.R"))
 source(here("scripts","setup.model.R"))
 source(here("src","model_functions.R"))
+source(here("src","plot_single_fits.R"))
 
 stochastic <- 0
 
 #############
 # 2 Create dust object 
-model_path<-here("src","seiar.age.R")
+model_path<-here("src","seiar.age.2strain_alternative.R")
 seiar <- odin.dust::odin_dust(model_path)
 
 #############
@@ -38,51 +40,94 @@ if (stochastic==1){
                                                 compare = compare, 
                                                 index = index)
 }
+
+
 ###########
 
-## Load pre-saved samples
-if (stochastic==1){
-  load(here("output","processed_samples.RData")) 
-}else{
-  
-  load(here("output","processed_samples_det.RData"))  
-  
-}
-
-
-id<- which(processed_chains$probabilities[,"log_posterior"] == 
-             max(processed_chains$probabilities[,"log_posterior"]))[1]
-
-thetas<-processed_chains$pars
-#heta <- apply(thetas, 2, mean)
-scaling_fac<-params$scaling_fac
-
-theta <- thetas[id,]/unlist(scaling_fac)
-print(theta)
+# ## Load pre-saved samples
+# if (stochastic==1){
+#   load(here("output","processed_samples.RData")) 
+# }else{
+#   
+#   load(here("output","processed_samples_det.RData"))  
+#   theta_simplex<-read.csv(here("output","simplex_set.csv"), header=TRUE)#, sep=,)
+#   
+# }
+# 
+# 
+# id<- which(processed_chains$probabilities[,"log_posterior"] == 
+#              max(processed_chains$probabilities[,"log_posterior"]))[1]
+# 
+# 
+# scaling_fac<-params$scaling_fac
+# 
+# if (simplex==0){
+#   thetas<-processed_chains$pars
+#   theta <- thetas[id,]/unlist(scaling_fac)
+# }else{
+#   tmp<-t(theta_simplex$x)
+#   theta <- c(tmp/unlist(scaling_fac))
+#   names(theta)<-names(scaling_fac)
+#   }
+# 
+# 
+# print(theta)
 c_mat<-params$transmission
 c_mat2<-params$transmission_holi
+  
+theta=c(
+    beta_j =  0.4 , 
+    beta_k =  0.3,   
+    aduRR = 0.3 ,
+    delta = 170,   
+    rho = 0.05  ,
+    tau = 2,   
+    w1_j = 0.1 ,
+    w1_k = 0.1 ,
+    repfac=145,
+    crossp_j=0.05,
+    crossp_k=0.05)
 
-c_mat[adult_id,adult_id]<-c_mat[adult_id,adult_id]* theta[["aduRR"]]
-c_mat2[adult_id,adult_id]<-c_mat2[adult_id,adult_id]* theta[["aduRR"]]
+c_mat[adult_id,adult_id]<-c_mat[adult_id,adult_id] * theta[["aduRR"]]
+c_mat2[adult_id,adult_id]<-c_mat2[adult_id,adult_id]*  theta[["aduRR"]]
+
 
 pars<-list(
-  beta  = theta[['beta']],   # transm coefficient
+  beta_j  = theta[['beta_j']],   # transm coefficient
+  beta_k  = theta[['beta_k']],   # transm coefficient
   repfac= theta[['repfac']],    # Community/reported ratio
   delta = theta[['delta']],      # maternal AB duration (days)
   tau   = theta[['tau']],       # Overall immunity duration (years)0
-  w1 = theta[['w1']],
+  w1 = theta[['w1_j']],
+  w1 = theta[['w1_k']],
   rho=  theta[['rho']],
+  crossp_j=  theta[['crossp_j']],
+  crossp_k=  theta[['crossp_k']],
   pop  = pop,
   init  = init,
   mu    = params$mu,
   m     = c_mat,
   m_holi= c_mat2,
+  aging_vec =params$aging_vec,
   school_step= as.double(params$school),
   n_school_steps=params$n_school_steps,
-  N_age = params$N_age,
-  aging_mat = params$aging_mat
-  ) # number of age groups
+  N_age = params$N_age
+) # number of age groups
 
+
+## Run Filter
+
+filter$run(pars, save_history = TRUE)
+sims<-filter$history()
+state<-filter$state()
+data<-data_all
+plot_single_fits(sims,data)
+
+
+
+
+
+#### Other simulations
 
 
 reps<-10
@@ -94,17 +139,44 @@ sim<-drop(sim)
 
 
 
+
+idx<-model$info()$index
+prev<-sim[idx$seroprev_num[1:6],1,]/sim[idx$seroprev_den[1:6],1,]
+t<-sim[idx$time,1,]
+plot(t,prev[1,], type = "l", col = "blue",  
+        xlab = "day", ylab = "prevalence", las = 1,
+        ylim=c(0,1))
+lines(t,prev[2,], col = "red")
+lines(t,prev[3,], col = "orange")
+lines(t,prev[4,], col = "green")
+lines(t,prev[5,], col = "black")
+lines(t,prev[6,], col = "purple")
+lines(c(7852,7852),c(0,1))
+
+
+
+
+
 # Incidence
 ## Weekly cass reported by UKHSA
 cols <- c("#8c8cd9", "#e67300", "#d279a6", "#ff4d4d", "#999966",
-                "#660000")
+          "#660000")
 
 idx<-model$info()$index
-cases<-sim[idx$infections_day,,]
+cases<-sim[idx$infections_day_j,,]
 t<-sim[idx$time,1,]
 matplot(t,t(cases), type = "l", col = "#e673001A",  
         xlab = "day", ylab = "incidence", las = 1,
         xlim = c(0,365*2))
+
+idx<-model$info()$index
+cases<-sim[idx$infections_day_k,,]
+t<-sim[idx$time,1,]
+matplot(t,t(cases), type = "l", col = "#ff4d4d",  
+        xlab = "day", ylab = "incidence", las = 1,
+        xlim = c(0,365*2))
+
+
 
 #cases year
 idx<-model$info()$index
@@ -137,7 +209,7 @@ matplot(t, sims, xlab = "Time", ylab = "Number of individuals",
                 rep(sir_col_transp[2], reps),
                 rep(sir_col_transp[3], reps),
                 rep(sir_col_transp[4], reps)),
-                lty = 1,
+        lty = 1,
         xlim = c(0,365*2))
 legend("right", lwd = 1, col = sir_col,
        legend = c("S", "I", "A",  "R"), bty = "n")
@@ -146,7 +218,7 @@ legend("right", lwd = 1, col = sir_col,
 m <- params$contact$matrix # age-structured contact matrix
 ngm<-c_mat*0
 beta<- theta[['beta']]
-  
+
 
 # Next Generation matrix
 for (i in 1:params$N_age){
@@ -197,7 +269,7 @@ matplot(t,t(cases), type = "l", col = "#e673001A",
         las = 1,
         xlim = c(sgss$day[1],sgss$day[length(sgss$day)]),
         ylim = c(0,max(sgss$cases))
-        )
+)
 points(sgss$day, sgss$cases)
 
 
@@ -226,86 +298,6 @@ matplot(t,t(cases), type = "l", col = "red",
         xlab = "day", 
         ylab = "Cases 65p", 
         las = 1)
-
-
-
-
-
-## Run Filter
-
-filter$run(pars, save_history = TRUE)
-sim<-filter$history()
-
-
-## sero 
-id<-which(sim["t",1,]%in%
-            data_all$time_end[which(!is.na(data_all$sero1))])
-sero_model<-rbind(
-  sim['seroprev1.2',,id],
-  sim['seroprev2.3',,id],
-  sim['seroprev3.4',,id],
-  sim['seroprev4.5',,id],
-  sim['seroprev5.6',,id],
-  sim['seroprev6.7',,id]
-)
-id<-which(!is.na(data_all$sero1))
-sero_obs<-c(data_all$sero1[id],
-            data_all$sero2[id],
-            data_all$sero3[id],
-            data_all$sero4[id],
-            data_all$sero5[id],
-            data_all$sero6[id])
-
-matplot(c(1,2,3,4,5,6),sero_model, type = "p", col = "#00091169", 
-        xlab = "Age", ylab = "Seropositivity", las = 1,ylim=c(0,1),xaxt="n")
-xtick<-seq(1, 6, by=1)
-axis(side=1, at=xtick, labels = c("1_2","2_3","3_4","4_5","5_6","6_7"))
-arrows(x0=c(1,2,3,4,5,6), y0=sero$V2, 
-       x1=c(1,2,3,4,5,6), y1=sero$V3,
-       code=3, angle=90, length=0.1)
-points(sero_obs , pch = 19, col = "red")
-
-
-
-
-
-## Community incidence (IID2)
-t<-which(sim["t",1,]%in%
-           data_all$time_end[which(!is.na(data_all$cases_a1))])
-
-
-pop1<-sum(params$pop[1:4])
-pop2<-sum(params$pop[5:8])
-pop3<-sum(params$pop[9:13])
-pop4<-sum(params$pop[14])
-
-irates<-1000*(cbind(sim["cases_year1",,t]/pop1,
-                    sim["cases_year2",,t]/pop2,
-                    sim["cases_year3",,t]/pop3,
-                    sim["cases_year4",,t]/pop4))
-irate_obs<-c(data_all$cases_a1[1],data_all$cases_a2[1],
-             data_all$cases_a3[1],data_all$cases_a4[1])
-matplot(c(1,2,3,4),t(irates), type = "p", col =  "#00091169", 
-        xlab = "Age", ylab = "Incidence per 1000", las = 1,ylim=c(0,250),xaxt="n")
-xtick<-seq(1, 4, by=1)
-axis(side=1, at=xtick, labels = c("0_4","5_14","15_64","65+"))
-arrows(x0=c(1,2,3,4), y0=data_iid2.c4$CI_lower, 
-       x1=c(1,2,3,4), y1=data_iid2.c4$CI_upper,
-       code=3, angle=90, length=0.1)
-points(irate_obs , pch = 19, col = "red")
-
-
-
-## Weekly cass reported by UKHSA
-id<-which(sim["t",1,]%in%data_all$time_end[which(!is.na(data_all$reported))])
-reported<-sim["reported_wk",,id]
-reported_obs<-data_all$reported[which(!is.na(data_all$reported))]
-t<-sim["t",1,id]
-matplot(t,t(reported), type = "l", col = "#00091169",  
-        xlab = "week", ylab = "Weekly reported cases", las = 1,
-        ylim = c(0 , max(reported_obs)))
-points(t, reported_obs, pch = 19, col = "red")
-
 
 
 

@@ -1,54 +1,155 @@
 ## Definition of the time-step and output as "time"
 dt <- user(1)
-steps_per_day <- 1/dt
 steps_per_week<- 7/dt
 steps_per_year<- 365/dt
-initial(time) <- 0
+initial(time) <-  0
 update(time) <- (step + 1) * dt
 
 ## Equations for transitions between compartments by age group
 # Not infected
-update(M[]) <- M[i] + n_bM[i] - n_MS[i] - n_muM[i] + n_ageM[i]
-update(G[]) <- G[i] + n_bG[i] - n_muG[i] + n_ageG[i]
-update(S[]) <- S[i] + n_bS[i] + n_MS[i] + n_Rj_S[i] + n_Rjk_S[i] + n_Rk_S[i] - 
-  n_S_Ej[i] - n_S_Ek[i] - n_muS[i] + n_ageS[i] 
+update(M[]) <-   ( if(i>1)  
+  M[i] + M[i-1] * aging_vec[i-1] - M[i] * aging_vec[i] - n_MS[i] - n_muM[i] 
+  else  
+    M[i] + n_bM[i] - M[i] * aging_vec[i] - n_MS[i] - n_muM[i]) 
+
+update(G[]) <-  (if(i>1) 
+  G[i] + G[i-1] * aging_vec[i-1] - G[i] * aging_vec[i] - n_muG[i]
+  else  
+    G[i] + n_bG[i] - G[i] * aging_vec[i] - n_muG[i] 
+) 
+
+update(S[]) <-   (if(i>1) 
+  S[i] + n_bS[i]+ S[i-1] * aging_vec[i-1] - S[i] * aging_vec[i] + n_MS[i] + 
+    n_Rj_S[i] + n_Rjk_S[i] + n_Rk_S[i] - n_S_Ej[i] - n_S_Ek[i] - n_muS[i]
+  else  
+    S[i] + n_bS[i]- S[i] * aging_vec[i] + n_MS[i] + n_Rj_S[i] + n_Rjk_S[i] + 
+    n_Rk_S[i] - n_S_Ej[i] - n_S_Ek[i] - n_muS[i]
+) 
+
+
+
 
 # Strain 1infected(GII.4)
-update(Ej[]) <- Ej[i] + n_S_Ej[i] - n_Ej_Ij[i] - n_muEj[i] + n_ageEj[i]
-update(Ij[]) <- Ij[i] + n_Ej_Ij[i] - n_Ij_Aj[i] - n_muIj[i] + n_ageIj[i]
-update(Aj[]) <- Aj[i] + n_Ij_Aj[i] + n_Rj_Aj[i] - n_Aj_Rj[i]  - n_muAj[i] + 
-  n_ageAj[i]
-update(Rj[]) <- Rj[i] + n_Aj_Rj[i] - n_Rj_S[i] - n_Rj_Ekj[i] - n_muRj[i] - 
-  n_Rj_Aj[i]   + n_ageRj[i]
+update(Ej[]) <-   (if(i>1) 
+  Ej[i]+ Ej[i-1] * aging_vec[i-1] - Ej[i] * aging_vec[i] + n_S_Ej[i] - 
+    n_Ej_Ij[i] - n_muEj[i]
+  else  
+    Ej[i]- Ej[i] * aging_vec[i] + n_S_Ej[i] - n_Ej_Ij[i] - n_muEj[i]
+) 
+
+
+update(Ij[]) <-   (if(i>1) 
+  Ij[i]+ Ij[i-1] * aging_vec[i-1] - Ij[i] * aging_vec[i] + n_Ej_Ij[i] -
+    n_Ij_Aj[i] - n_muIj[i] 
+  else  
+    Ij[i]- Ij[i] * aging_vec[i] + n_Ej_Ij[i] - n_Ij_Aj[i] - n_muIj[i] 
+) 
+
+update(Aj[]) <-   (if(i>1) 
+  Aj[i]+ Aj[i-1] * aging_vec[i-1] - Aj[i] * aging_vec[i] + n_Ij_Aj[i] + n_Rj_Aj[i] - 
+    n_Aj_Rj[i]  - n_muAj[i]
+  else  
+    Aj[i] - Aj[i] * aging_vec[i] + n_Ij_Aj[i] + n_Rj_Aj[i] - n_Aj_Rj[i]  - n_muAj[i]
+) 
+
+update(Rj[]) <-   (if(i>1) 
+  Rj[i]+ Rj[i-1] * aging_vec[i-1] - Rj[i] * aging_vec[i] + n_Aj_Rj[i] - n_Rj_S[i] -
+    n_Rj_Ekj[i] - n_muRj[i] - n_Rj_Aj[i]
+  else  
+    Rj[i] - Rj[i] * aging_vec[i] + n_Aj_Rj[i] - n_Rj_S[i] -
+    n_Rj_Ekj[i] - n_muRj[i] - n_Rj_Aj[i]
+) 
 
 # Strain 2 infected(non-GII.4) with strain 1 protection
-update(Ekj[]) <- Ekj[i] + n_Rj_Ekj[i] - n_Ekj_Ikj[i] - n_muEkj[i] + n_ageEkj[i]
-update(Ikj[]) <- Ikj[i] + n_Ekj_Ikj[i] - n_Ikj_Akj[i] - n_muIkj[i] + n_ageIkj[i]
-update(Akj[]) <- Akj[i] + n_Ikj_Akj[i] - n_Akj_Rjk[i]  - n_muAkj[i] + n_ageAkj[i]
+update(Ekj[]) <- (if(i>1) 
+  Ekj[i] + Ekj[i-1] * aging_vec[i-1] - Ekj[i] * aging_vec[i] + n_Rj_Ekj[i] - n_Ekj_Ikj[i] -
+    n_muEkj[i]
+  else  
+    Ekj[i]- Ekj[i] * aging_vec[i] + n_Rj_Ekj[i] - n_Ekj_Ikj[i] - n_muEkj[i]
+) 
+
+update(Ikj[]) <- (if(i>1) 
+  Ikj[i]+ Ikj[i-1] * aging_vec[i-1] - Ikj[i] * aging_vec[i] + n_Ekj_Ikj[i] - 
+    n_Ikj_Akj[i] - n_muIkj[i]
+  else  
+    Ikj[i]- Ikj[i] * aging_vec[i] + n_Ekj_Ikj[i] - n_Ikj_Akj[i] - n_muIkj[i]
+) 
+
+update(Akj[]) <- (if(i>1) 
+  Akj[i]+ Akj[i-1] * aging_vec[i-1] - Akj[i] * aging_vec[i] + n_Ikj_Akj[i] - 
+    n_Akj_Rjk[i]  - n_muAkj[i]
+  else  
+    Akj[i] - Akj[i] * aging_vec[i] + n_Ikj_Akj[i] - n_Akj_Rjk[i]  - n_muAkj[i]
+) 
 
 # Strain 1 infected (GII.4) with strain 2 protection
-update(Ejk[]) <- Ejk[i] + n_Rk_Ejk[i] - n_Ejk_Ijk[i] - n_muEjk[i] + n_ageEjk[i]
-update(Ijk[]) <- Ijk[i] + n_Ejk_Ijk[i] - n_Ijk_Ajk[i] - n_muIjk[i] + n_ageIjk[i]
-update(Ajk[]) <- Akj[i] + n_Ijk_Ajk[i] - n_Ajk_Rjk[i]  - n_muAjk[i] + n_ageAjk[i]
+update(Ejk[]) <- (if(i>1)
+  Ejk[i]+ Ejk[i-1] * aging_vec[i-1] - Ejk[i] * aging_vec[i] + n_Rk_Ejk[i] - 
+    n_Ejk_Ijk[i] - n_muEjk[i]
+  else
+    Ejk[i] - Ejk[i] * aging_vec[i] + n_Rk_Ejk[i] -  n_Ejk_Ijk[i] - n_muEjk[i]
+)
+
+update(Ijk[]) <- (if(i>1) 
+  Ijk[i]+ Ijk[i-1] * aging_vec[i-1] - Ijk[i] * aging_vec[i] + n_Ejk_Ijk[i] - 
+    n_Ijk_Ajk[i] - n_muIjk[i]
+  else  
+    Ijk[i] - Ijk[i] * aging_vec[i] + n_Ejk_Ijk[i] - n_Ijk_Ajk[i] - n_muIjk[i]
+) 
+
+update(Ajk[]) <- (if(i>1) 
+  Ajk[i]+ Ajk[i-1] * aging_vec[i-1] - Ajk[i] * aging_vec[i] + n_Ijk_Ajk[i] -
+    n_Ajk_Rjk[i]  - n_muAjk[i]
+  else  
+    Ajk[i] - Ajk[i] * aging_vec[i] + n_Ijk_Ajk[i] - n_Ajk_Rjk[i]  - n_muAjk[i]
+) 
 
 # Recovered and transiently protected from all strains
-update(Rjk[]) <- Rjk[i] + n_Ajk_Rjk[i] + n_Akj_Rjk[i] - n_Rjk_S[i] - n_muRjk[i] -
-  + n_ageRjk[i]
+update(Rjk[]) <- (if(i>1) 
+  Rjk[i]+ Rjk[i-1] * aging_vec[i-1] - Rjk[i] * aging_vec[i] + n_Ajk_Rjk[i] +
+    n_Akj_Rjk[i] - n_Rjk_S[i] - n_muRjk[i]
+  else 
+    Rjk[i] - Rjk[i] * aging_vec[i] + n_Ajk_Rjk[i] + n_Akj_Rjk[i] - n_Rjk_S[i] - 
+    n_muRjk[i]
+) 
 
 # Strain 2 infected (non-GII.4) 
-update(Ek[]) <- Ek[i] + n_S_Ek[i] - n_Ek_Ik[i] - n_muEk[i] + n_ageEk[i]
-update(Ik[]) <- Ik[i] + n_Ek_Ik[i] - n_Ik_Ak[i] - n_muIk[i] + n_ageIk[i]
-update(Ak[]) <- Ak[i] + n_Ik_Ak[i] + n_Rk_Ak[i] - n_Ak_Rk[i]  - n_muAk[i] + 
-  n_ageAk[i]
-update(Rk[]) <- Rk[i] + n_Ak_Rk[i] - n_Rk_S[i] - n_Rk_Ejk[i] - n_muRk[i] - 
-  n_Rk_Ak[i]   + n_ageRk[i]
+update(Ek[]) <- (if(i>1) 
+  Ek[i]+ Ek[i-1] * aging_vec[i-1] - Ek[i] * aging_vec[i] + n_S_Ek[i] - 
+    n_Ek_Ik[i] - n_muEk[i] 
+  else  
+    Ek[i] - Ek[i] * aging_vec[i] + n_S_Ek[i] - n_Ek_Ik[i] - n_muEk[i] 
+) 
 
+update(Ik[]) <- (if(i>1) 
+  Ik[i]+ Ik[i-1] * aging_vec[i-1] - Ik[i] * aging_vec[i] + n_Ek_Ik[i] - 
+    n_Ik_Ak[i] - n_muIk[i]
+  else  
+    Ik[i] - Ik[i] * aging_vec[i] + n_Ek_Ik[i] - n_Ik_Ak[i] - n_muIk[i] 
+) 
+
+update(Ak[]) <- 
+  (if(i>1) 
+    Ak[i]+ Ak[i-1] * aging_vec[i-1] - Ak[i] * aging_vec[i] + n_Ik_Ak[i] + 
+     n_Rk_Ak[i] - n_Ak_Rk[i]  - n_muAk[i] 
+   else  
+     Ak[i] - Ak[i] * aging_vec[i] + n_Ik_Ak[i] + n_Rk_Ak[i] - n_Ak_Rk[i]  - 
+     n_muAk[i] 
+  ) 
+
+update(Rk[]) <- (if(i>1) 
+  Rk[i]+ Rk[i-1] * aging_vec[i-1] - Rk[i] * aging_vec[i] + n_Ak_Rk[i] - 
+    n_Rk_S[i] - n_Rk_Ejk[i] - n_muRk[i] - n_Rk_Ak[i]
+  else  
+    Rk[i] - Rk[i] * aging_vec[i] + n_Ak_Rk[i] - n_Rk_S[i] - n_Rk_Ejk[i] -
+    n_muRk[i] - n_Rk_Ak[i]
+) 
 
 ######### Outputs
 
 # Daily infections incidence
 update(infections_day) <- 
-  sum(n_EI) + 
+  sum(n_Ej_Ij) + 
   sum(n_Ekj_Ikj) + 
   sum(n_Ek_Ik) + 
   sum(n_Ejk_Ijk)
@@ -56,10 +157,10 @@ update(infections_day) <-
 # Weekly reported cases (match sgss)
 update(reported_wk) <- if (step %% steps_per_week == 0)
   (sum(n_Ej_Ij) + 
-  sum(n_Ekj_Ikj) + 
-  sum(n_Ek_Ik) + 
-  sum(n_Ejk_Ijk)) * (1/repfac) else  
-    reported_wk + 
+     sum(n_Ekj_Ikj) + 
+     sum(n_Ek_Ik) + 
+     sum(n_Ejk_Ijk)) * (1/repfac) else  
+       reported_wk + 
   (sum(n_Ej_Ij) + 
      sum(n_Ekj_Ikj) + 
      sum(n_Ek_Ik) + 
@@ -105,14 +206,14 @@ update(cases_year_str2[]) <- if (step %% steps_per_year==0)
         if (i==4) sum(n_Ek_Ik[9:13]) + sum(n_Ekj_Ikj[9:13])  else
           sum(n_Ek_Ik[14]) + sum(n_Ekj_Ikj[14]) ) else
             (if(i==1)  cases_year_str2[1] + sum(n_Ek_Ik[1]) + sum(n_Ekj_Ikj[1]) else
-              if(i==2)  cases_year_str2[2] + sum(n_Ek_Ik[2:4]) + sum(n_Ekj_Ijk[2:4]) else
+              if(i==2)  cases_year_str2[2] + sum(n_Ek_Ik[2:4]) + sum(n_Ekj_Ikj[2:4]) else
                 if(i==3) cases_year_str2[3] + sum(n_Ek_Ik[5:8]) + sum(n_Ekj_Ikj[5:8])  else 
                   if (i==4)  cases_year_str2[4] + sum(n_Ek_Ik[9:13]) + sum(n_Ekj_Ikj[9:13])  else
                     cases_year_str2[5] + sum(n_Ek_Ik[14]) + sum(n_Ekj_Ikj[14]) )
 
 
 ## compute at risk population ( match IDD2 data)
-update(person_year) <- if (step %% steps_per_year==0)
+update(person_year[]) <- if (step %% steps_per_year==0)
   (if(i==1)  sum(Nrisk[1]) else
     if(i==2)  sum(Nrisk[2:4])  else 
       if(i==3)  sum(Nrisk[5:8])  else 
@@ -126,13 +227,31 @@ update(person_year) <- if (step %% steps_per_year==0)
 
 
 ## compute prevalence 
-update(seroprev[]) <- (Rj[i]+M[i]+Rjk[i]+Rk[i])/(M[i]+G[i]+S[i]+
-                                                   Ej[i]+Ij[i]+Aj[i]+Rj[i]+
-                                                   Ejk[i]+Ijk[i]+Ajk[i]+
-                                                   Ekj[i]+Ikj[i]+Akj[i]+
-                                                   Ek[i]+Ik[i]+Ak[i]+Rk[i]+
-                                                   Rjk[i])
+update(seroprev_num[]) <- if (step %% steps_per_year==0)
+  Rj[i]+M[i]+Rjk[i]+Rk[i] else
+    seroprev_num[i] + Rj[i]+M[i]+Rjk[i]+Rk[i]
 
+update(seroprev_den[]) <- if (step %% steps_per_year==0)
+  (M[i]+G[i]+S[i]+
+     Ej[i]+Ij[i]+Aj[i]+Rj[i]+
+     Ejk[i]+Ijk[i]+Ajk[i]+
+     Ekj[i]+Ikj[i]+Akj[i]+
+     Ek[i]+Ik[i]+Ak[i]+Rk[i]+
+     Rjk[i]) else
+       seroprev_den[i] + (M[i]+G[i]+S[i]+
+                            Ej[i]+Ij[i]+Aj[i]+Rj[i]+
+                            Ejk[i]+Ijk[i]+Ajk[i]+
+                            Ekj[i]+Ikj[i]+Akj[i]+
+                            Ek[i]+Ik[i]+Ak[i]+Rk[i]+
+                            Rjk[i])
+
+update(seroprev[]) <- 
+  Rj[i]+M[i]+Rjk[i]+Rk[i]/(M[i]+G[i]+S[i]+
+                             Ej[i]+Ij[i]+Aj[i]+Rj[i]+
+                             Ejk[i]+Ijk[i]+Ajk[i]+
+                             Ekj[i]+Ikj[i]+Akj[i]+
+                             Ek[i]+Ik[i]+Ak[i]+Rk[i]+
+                             Rjk[i]) 
 
 ## Individual probabilities of transition:
 p_mu[] <- 1 - exp(-mu[i] * dt) # mortality
@@ -142,7 +261,7 @@ p_SEk[] <- 1 - exp(-lambda_k[i] * dt) # S to E
 p_RjAj[] <- 1 - exp(-lambda_j[i] * (1-alpha) * dt)
 p_RkAk[] <- 1 - exp(-lambda_k[i] * (1-alpha) * dt)
 p_RjEkj[] <- 1 - exp(-lambda_k[i] * (1-gamma_kj) * dt)
-p_RkEjk[] <- 1 - exp(-lambda_k[i] * (1-gamma_jk) * dt)
+p_RkEjk[] <- 1 - exp(-lambda_j[i] * (1-gamma_jk) * dt)
 p_EI   <- 1 - exp(-(1/epsilon) * dt) # E to I
 p_IA_5    <- 1 - exp(-(1/theta_5) * dt) # I to A
 p_IA_5p   <- 1 - exp(-(1/theta_5p) * dt) # I to A
@@ -152,14 +271,18 @@ N      <- sum(M) + sum(G)+sum(S)+sum(Ej)+sum(Ij)+sum(Aj)+sum(Rj)+
   sum(Ejk)+sum(Ijk)+sum(Ajk)+sum(Rjk)+
   sum(Ek)+sum(Ik)+sum(Ak)+sum(Rk)+
   sum(Ekj)+sum(Ikj)+sum(Akj)
-  
-  
+
+
 Nrisk[] <- M[i] + G[i] + S[i] + Ej[i]+ Aj[i]+Rj[i]+
   Ejk[i]+Ajk[i]+Rjk[i]+
   Ek[i]+Ak[i]+Rk[i]+
   Ekj[i]+Akj[i]
 
-prev   <- (sum(E)+sum(I)+sum(A)+sum(R))/N  
+prev   <- (sum(Ej)+sum(Ij)+sum(Aj)+sum(Rj)+
+             sum(Ejk)+sum(Ijk)+sum(Ajk)+sum(Rjk)+
+             sum(Ek)+sum(Ik)+sum(Ak)+sum(Rk)+
+             sum(Ekj)+sum(Ikj)+sum(Akj))/N  
+
 p_birth[1]   <- (1-p_nonsecretor)*prev
 p_birth[2]   <- p_nonsecretor
 p_birth[3]   <- (1-p_nonsecretor)*(1-prev) 
@@ -189,46 +312,6 @@ beta_k_t <- beta_k *(1 + w1*cos((2*pi*time)/364 + w2*pi))
 lambda_j[] <- beta_j_t  * sum(cj_ij[i , ])
 lambda_k[] <- beta_k_t  * sum(ck_ij[i , ])
 
-
-# Aging transitions
-m_ij[,] <- aging_mat[i,j]*M[j] * dt
-g_ij[,] <- aging_mat[i,j]*G[j] * dt
-s_ij[,] <- aging_mat[i,j]*S[j] * dt
-ej_ij[,] <- aging_mat[i,j]*Ej[j] * dt
-ij_ij[,] <- aging_mat[i,j]*Ij[j] * dt
-aj_ij[,] <- aging_mat[i,j]*Aj[j] * dt
-rj_ij[,] <- aging_mat[i,j]*Rj[j] * dt
-ekj_ij[,] <- aging_mat[i,j]*Ekj[j] * dt
-ikj_ij[,] <- aging_mat[i,j]*Ikj[j] * dt
-akj_ij[,] <- aging_mat[i,j]*Akj[j] * dt
-ejk_ij[,] <- aging_mat[i,j]*Ejk[j] * dt
-ijk_ij[,] <- aging_mat[i,j]*Ijk[j] * dt
-ajk_ij[,] <- aging_mat[i,j]*Ajk[j] * dt
-rjk_ij[,] <- aging_mat[i,j]*Rjk[j] * dt
-ek_ij[,] <- aging_mat[i,j]*Ek[j] * dt
-ik_ij[,] <- aging_mat[i,j]*Ik[j] * dt
-ak_ij[,] <- aging_mat[i,j]*Ak[j] * dt
-rk_ij[,] <- aging_mat[i,j]*Rk[j] * dt
-
-
-n_ageM[]<- round(sum(m_ij[,i]))
-n_ageG[]<- round(sum(g_ij[,i]))
-n_ageS[]<- round(sum(s_ij[,i]))
-n_ageEj[]<- round(sum(ej_ij[,i]))
-n_ageIj[]<- round(sum(ij_ij[,i]))
-n_ageAj[]<- round(sum(aj_ij[,i]))
-n_ageRj[]<- round(sum(rj_ij[,i]))
-n_ageEjk[]<- round(sum(ejk_ij[,i]))
-n_ageIjk[]<- round(sum(ijk_ij[,i]))
-n_ageAjk[]<- round(sum(ajk_ij[,i]))
-n_ageEkj[]<- round(sum(ekj_ij[,i]))
-n_ageIkj[]<- round(sum(ikj_ij[,i]))
-n_ageAkj[]<- round(sum(akj_ij[,i]))
-n_ageRjk[]<- round(sum(rjk_ij[,i]))
-n_ageEk[]<- round(sum(ek_ij[,i]))
-n_ageIk[]<- round(sum(ik_ij[,i]))
-n_ageAk[]<- round(sum(ak_ij[,i]))
-n_ageRk[]<- round(sum(rk_ij[,i]))
 
 ########### HERE ::::::::::::::::::::::::
 
@@ -268,7 +351,7 @@ n_muIkj[]<- rbinom(Ikj[i], p_mu[i])
 n_Ikj_Akj[] <- rbinom(Ikj[i]-n_muIkj[i], if (i<=5)p_IA_5 else p_IA_5p )
 
 n_muAkj[]<- rbinom(Akj[i], p_mu[i])
-n_Akj_Rkj[] <- rbinom(Akj[i]-n_muAkj[i], p_AR)
+n_Akj_Rjk[] <- rbinom(Akj[i]-n_muAkj[i], p_AR)
 
 #jk
 n_muEjk[]<- rbinom(Ejk[i], p_mu[i])
@@ -282,7 +365,7 @@ n_Ajk_Rjk[] <- rbinom(Ajk[i]-n_muAjk[i], p_AR)
 
 # Rjk
 n_muRjk[]  <- rbinom(Rjk[i], p_mu[i])
-n_Rj_S[]   <- rbinom(Rjk[i]-n_muRjk[i], p_RS)
+n_Rjk_S[]   <- rbinom(Rjk[i]-n_muRjk[i], p_RS)
 
 #k
 n_muEk[]<- rbinom(Ek[i], p_mu[i])
@@ -318,8 +401,8 @@ n_allDeath<-
   sum(n_muEk)+
   sum(n_muIk)+
   sum(n_muAk)+
-  sum(n_muRk)+
-  
+  sum(n_muRk)
+
 # Births to keep stable population equal to deaths
 n_bM[] <- if (i==1) n_allDeath*p_birth[1] else 0 
 n_bG[] <- if (i==1) n_allDeath*p_birth[2] else 0 
@@ -327,12 +410,7 @@ n_bS[] <- if (i==1) n_allDeath*p_birth[3] else 0
 
 
 ## Initial states:
-#initial(infections_tot)<-0
-initial(infections_day)<-0
-initial(reported_wk)<-0
-# initial(reported_wk0_4)<-0
-# initial(reported_wk5_65)<-0
-# initial(reported_wk65_p)<-0
+
 
 initial(M[]) <- init[1,i]
 initial(G[]) <- init[2,i]
@@ -344,54 +422,61 @@ initial(Rj[]) <- init[7,i]
 initial(Ekj[]) <- init[8,i]
 initial(Ikj[]) <- init[9,i]
 initial(Akj[]) <- init[10,i]
-initial(Rjk[]) <- init[11,i]
-initial(Ekj[]) <- init[12,i]
-initial(Ikj[]) <- init[13,i]
-initial(Akj[]) <- init[14,i]
+initial(Ejk[]) <- init[11,i]
+initial(Ijk[]) <- init[12,i]
+initial(Ajk[]) <- init[13,i]
+initial(Rjk[]) <- init[14,i]
 initial(Ek[]) <- init[15,i]
 initial(Ik[]) <- init[16,i]
 initial(Ak[]) <- init[17,i]
 initial(Rk[]) <- init[18,i]
 
-#initial(cumu_inc[]) <- 0
-initial(cases_year[]) <- 0
+# Outputs
+initial(cases_year_str1[]) <- 0
+initial(cases_year_str2[]) <- 0
 initial(person_year[]) <- 0
 initial(seroprev[]) <-0
-#initial(n_risk[]) <-init[1,i]+init[2,i]+init[3,i]+init[7,i]
-#initial(aux)<-0
+initial(seroprev_num[]) <-0
+initial(seroprev_den[]) <-1
+initial(infections_day)<-0
+initial(reported_wk)<-0
+#initial(infections_tot)<-0
+# initial(reported_wk0_4)<-0
+# initial(reported_wk5_65)<-0
+# initial(reported_wk65_p)<-0
 
 ## User defined parameters - default in parentheses:
 init[,] <- user()
 
-beta <- user(0.046)   # transm coefficient
-repfac_04<-user(287)
-repfac<-user(287)    # reported to community factor
-repfac_65p<-user(287)
-delta <- user(0.04)  # maternal Ab decay
+beta_j <- user(0.2)   # transm coefficient
+beta_k <- user(0.2)   # transm coefficient
+#repfac_04<-user(287)
+repfac<- user(287)    # reported to community factor
+#repfac_65p<-user(287)
+delta <- user(180)  # maternal Ab decay (days)
 epsilon <- user(1)   # incubation
 theta_5 <- user(2.5)   # duration symptoms
 theta_5p <- user(1.5)   # duration symptoms
 sigma <- user(15) # duration asymp shedding
 tau   <- user(5.1)     # duration immunity
 rho   <- user(0.05) # rel infect asymptomatic 
-gamma_kj<-user(0.5) # cross_protection prob from j to k
-gamma_jk<-user(0.5) # cross_protection prob from k to j
+gamma_kj<-user(0.05) # cross_protection prob from j to k
+gamma_jk<-user(0.05) # cross_protection prob from k to j
 p_nonsecretor<-user(0.2) # Fraction immune genetically
 w1 <-user(0.15) # sesonality
 w2 <-user(0) # sesonality
 pi <-user(3.141593)
 alpha<-user(0)# rel susc in R 
 mu[]  <- user()      # mortality rates 
-aging_mat[,]<-user() # aging transitions matrix
+aging_vec[]<-user() # aging transitions matrix
 school_step[]<-user()
 n_school_steps<-user()
-index_idd2<-user(822) # index to start acumulating output
 #
 # dimensions of arrays
 N_age <- user()
 dim(school_step)<-user()
 dim(init) <-  c(18,N_age)
-dim(aging_mat)<-c(N_age, N_age)
+dim(aging_vec)<- N_age
 dim(M) <- N_age
 dim(G) <- N_age
 dim(S) <- N_age
@@ -411,7 +496,9 @@ dim(Ik) <- N_age
 dim(Ak) <- N_age
 dim(Rk) <- N_age
 #dim(cumu_inc) <- N_age
-dim(seroprev) <- N_age
+dim(seroprev) <- 7
+dim(seroprev_num) <- 7
+dim(seroprev_den) <- 7
 dim(cases_year_str1)<- 5
 dim(cases_year_str2)<- 5
 dim(person_year)<- 5
@@ -434,73 +521,45 @@ dim(n_muEk) <- N_age
 dim(n_muIk) <- N_age
 dim(n_muAk) <- N_age
 dim(n_muRk) <- N_age
-dim(n_ageM) <- N_age
-dim(n_ageG) <- N_age
-dim(n_ageS) <- N_age
-dim(n_ageEj) <- N_age
-dim(n_ageIj) <- N_age
-dim(n_ageAj) <- N_age
-dim(n_ageRj) <- N_age
-dim(n_ageEkj) <- N_age
-dim(n_ageIkj) <- N_age
-dim(n_ageAkj) <- N_age
-dim(n_ageEjk) <- N_age
-dim(n_ageIjk) <- N_age
-dim(n_ageAjk) <- N_age
-dim(n_ageRjk) <- N_age
-dim(n_ageEk) <- N_age
-dim(n_ageIk) <- N_age
-dim(n_ageAk) <- N_age
-dim(n_ageRk) <- N_age
-dim(m_ij) <-c(N_age, N_age)
-dim(g_ij) <-c(N_age, N_age)
-dim(sj_ij) <-c(N_age, N_age)
-dim(ej_ij) <-c(N_age, N_age)
-dim(ij_ij) <-c(N_age, N_age)
-dim(aj_ij) <-c(N_age, N_age)
-dim(rj_ij) <-c(N_age, N_age)
-dim(ek_ij) <-c(N_age, N_age)
-dim(ik_ij) <-c(N_age, N_age)
-dim(ak_ij) <-c(N_age, N_age)
-dim(rk_ij) <-c(N_age, N_age)
-dim(ejk_ij) <-c(N_age, N_age)
-dim(ijk_ij) <-c(N_age, N_age)
-dim(ajk_ij) <-c(N_age, N_age)
-dim(rjk_ij) <-c(N_age, N_age)
-dim(ekj_ij) <-c(N_age, N_age)
-dim(ikj_ij) <-c(N_age, N_age)
-dim(akj_ij) <-c(N_age, N_age)
 dim(n_bM) <- N_age
 dim(n_bG) <- N_age
 dim(n_bS) <- N_age
 dim(n_MS) <- N_age
-n_S_Ej<- N_age 
-n_S_Ek<- N_age 
-n_Ej_Ij<- N_age 
-n_Ij_Aj<- N_age 
-n_Aj_Rj<- N_age 
-n_Rj_Aj<- N_age
-n_Rj_S<- N_age
-n_Rj_Ekj<- N_age 
-n_Ekj_Ikj<- N_age 
-n_Ikj_Akj<- N_age 
-n_Akj_Rkj<- N_age 
-n_Ejk_Ijk<- N_age 
-n_Ijk_Ajk<- N_age 
-n_Ajk_Rjk<- N_age 
-n_Rj_S<- N_age   
-n_Ek_Ik<- N_age 
-n_Ik_Ak<- N_age 
-n_Ak_Rk<- N_age 
-n_Rk_Ak<- N_age 
-n_Rk_S<- N_age
-n_Rk_Ejk <- N_age 
+dim(n_S_Ej)<- N_age 
+dim(n_S_Ek) <- N_age 
+dim(n_Ej_Ij) <- N_age 
+dim(n_Ij_Aj) <- N_age 
+dim(n_Aj_Rj) <- N_age 
+dim(n_Rj_Aj) <- N_age
+dim(n_Rj_S) <- N_age
+dim(n_Rj_Ekj) <- N_age 
+dim(n_Ekj_Ikj) <- N_age 
+dim(n_Ikj_Akj) <- N_age 
+dim(n_Akj_Rjk) <- N_age 
+dim(n_Ejk_Ijk) <- N_age 
+dim(n_Ijk_Ajk) <- N_age 
+dim(n_Ajk_Rjk) <- N_age 
+dim(n_Rjk_S) <- N_age   
+dim(n_Ek_Ik) <- N_age 
+dim(n_Ik_Ak) <- N_age 
+dim(n_Ak_Rk) <- N_age 
+dim(n_Rk_Ak) <- N_age 
+dim(n_Rk_S) <- N_age
+dim(n_Rk_Ejk ) <- N_age 
 dim(p_birth)   <- 3
+dim(p_mu) <- N_age
+dim(p_MS) <- N_age
+dim(p_SEj) <- N_age
+dim(p_SEk) <- N_age
+dim(p_RjAj) <- N_age
+dim(p_RkAk) <- N_age
+dim(p_RjEkj) <- N_age
+dim(p_RkEjk) <- N_age
 dim(mu)<-N_age
 dim(m) <- c(N_age, N_age)
 dim(m_holi) <- c(N_age, N_age)
 dim(cj_ij) <- c(N_age, N_age)
-dim(cj_ij) <- c(N_age, N_age)
+dim(ck_ij) <- c(N_age, N_age)
 dim(lambda_j) <- N_age
 dim(lambda_k) <- N_age
 
