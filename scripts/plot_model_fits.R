@@ -1,87 +1,327 @@
-
+library(matrixStats)
 ## Plot model fits
-
-nsim <- 300
+save_plot=0
+fake=0
+nsim <- 500
 posteriors<-processed_chains$trajectories$state
 # Sample
 sims <- posteriors[,sample(ncol(posteriors), nsim), ]
 
 data<-data_all
 
-## Community incidence (IID2)
+######## IID2 Community incidence
+x_d <- c(1, 3, 5, 7, 9) # bin x axis positions
+
+df_d <- data.frame(
+  x = x_d,
+  inc = data_iid2.c4$per1000personyears,
+  low = data_iid2.c4$CI_lower,
+  up = data_iid2.c4$CI_upper
+)
+
+
 t<-which(sims["t",1,]%in%
            data$time_end[which(!is.na(data$cases_a1))])
-
-pop1<-sum(params$pop[1:4])
-pop2<-sum(params$pop[5:8])
-pop3<-sum(params$pop[9:13])
-pop4<-sum(params$pop[14])
-
-irates<-1000*(cbind(sims["cases_year1",,t]/(sims["person_year1",,t]/365),
-                    sims["cases_year2",,t]/(sims["person_year2",,t]/365),
-                    sims["cases_year3",,t]/(sims["person_year3",,t]/365),
-                    sims["cases_year4",,t]/(sims["person_year4",,t]/365),
-                    sims["cases_year5",,t]/(sims["person_year5",,t]/365)))
-
-irate_obs<-c(data$cases_a1[1],
-             data$cases_a2[1],
-             data$cases_a3[1],
-             data$cases_a4[1],
-             data$cases_a5[1])
-np<-length(irate_obs)
-xtick<-seq(1, np, by=1)
-
-windows()
-matplot(xtick,t(irates), type = "p", col = "#00000011", 
-        xlab = "Age", ylab = "Incidence per 1000", las = 1,ylim=c(0,250),xaxt="n")
-
-axis(side=1, at=xtick, labels = c("0_1","1_4","5_14","15_64","65+"))
-arrows(x0=xtick, y0=data_iid2.c4$CI_lower, 
-       x1=xtick, y1=data_iid2.c4$CI_upper,
-       code=3, angle=90, length=0.1)
-points(irate_obs , pch = 19, col = "red")
+irates <-1000*(cbind(
+  (sims['cases_year1_str1',,t]+sims['cases_year1_str2',,t])/(sims['person_year1',,t]/365),
+  (sims['cases_year2_str1',,t]+sims['cases_year2_str2',,t])/(sims['person_year2',,t]/365) ,
+  (sims['cases_year3_str1',,t]+sims['cases_year3_str2',,t])/(sims['person_year3',,t]/365) ,
+  (sims['cases_year4_str1',,t]+sims['cases_year4_str2',,t])/(sims['person_year4',,t]/365) ,
+  (sims['cases_year5_str1',,t]+sims['cases_year5_str2',,t])/(sims['person_year5',,t]/365)))
 
 
-## Weekly cass reported by UKHSA all
+df_qtls <- as.data.frame(rowQuantiles(t(irates),
+                                      probs = c(0.025, 0.5, 0.975)))
+
+df1 <- data.frame(irates) 
+colnames(df1) <- paste(c("0_1","1_4","5_14","15_64","65+"))
+df_m <- reshape2::melt(df1)
+df_m$variable <- as.factor(df_m$variable)
+df_d$x <- factor(c("0_1","1_4","5_14","15_64","65+"))
+df_qtls$x <- factor(c("0_1","1_4","5_14","15_64","65+"))
+
+
+viol_col <- "#ff4d4d"# "chartreuse3" # "yellow3"
+err_col <- "black"
+data_col <- "black"
+
+fits_iid2 <- ggplot() +
+  geom_violin(
+    data = df_m,
+    aes(x = variable, y = value, fill = "Posterior Density"),
+    draw_quantiles = c(0.5),
+    width = 0.8,
+    linetype = 1,
+    trim = FALSE,
+    color = "white",
+    alpha = 0.5
+  ) +
+  geom_point(data = df_d, mapping = aes(x = x, y = inc, color = "Data (95% CI)"), size = 2, shape = 15) +
+  geom_errorbar(
+    mapping = aes(x = x, ymin = low, ymax = up), data = df_d,
+    width = .2, position = position_dodge(.9)
+  ) +
+  labs(title = "Model vs IID2 community incidence", x = "Age group (years)", y = "Incidence per 1000 \n person-year") +
+  theme_minimal() +
+  ylim(0, 500) +
+  scale_fill_manual(name = "", values = c("Posterior Density" = viol_col)) +
+  scale_color_manual(name = "", values = c("Data (95% CI)" = data_col)) +
+  theme(
+    legend.position = "none",
+    panel.background = element_blank(),
+    axis.text = element_text(colour = "black", size = 12, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11), legend.key = element_blank(),
+    axis.text.x = element_text(angle = 60, hjust = 1)
+  )
+
+fits_iid2
+if (save_plot==1){
+  save(fits_iid2, file = here("output","fits_iid2.rdata"))
+}
+
+######## SGSS cases reported 
+
 id<-which(sims["t",1,]%in%data_all$time_end[which(!is.na(data_all$reported))])
 reported<-sims["reported_wk",,id]
-reported_obs<-data$reported[which(!is.na(data$reported))]
-t<-seq(1,length(id),by=1)#sims["t",1,id]
-windows()
-matplot(t,t(reported), type = "l", col = "#00000011", 
-        xlab = "week", ylab = "Weekly reported cases all", las = 1,ylim = c(0,200))
-points(t,reported_obs, pch = 19, col = "red")
+reported_obs<-(data$reported[which(!is.na(data$reported))])
 
 
+mo <- as.Date(seq(as.Date(sgss_start),
+                  by = "week",
+                  length.out = dim(reported)[2]
+))
 
-## Seroprevalence 
+df_s <- as.data.frame(
+  rowQuantiles(t(reported),
+               probs = c(0.025, 0.5, 0.975)
+  )
+)
+df_s$x <- mo
+
+df_d <- data.frame(
+  x = mo,
+  cases = reported_obs
+)
+
+df_sim <- data.frame(
+  x = mo,
+  t(reported)
+)
+
+dat_sim <- reshape2::melt(df_sim, id = "x")
+
+
+fits_sgss <- ggplot(data = df_s, aes(x = x)) +
+  geom_line(
+    data = dat_sim, aes(x = x, y = value, group = variable), col = "grey",
+    alpha = 0.2, lwd = 0.4
+  ) +
+  geom_ribbon(aes(ymin = `2.5%`, ymax = `97.5%`), fill = "#69b3a2", alpha = 0.2) +
+  geom_line(aes(y = `50%`), col = "#69b3a2", lwd = 1) +
+  geom_point(data = df_d, aes(x = x, y = cases)) +
+  labs(title = "Model vs SGSS reported cases", x = " ", y = "Cases reported\n (per week)") +
+  theme_minimal() +
+  scale_x_date(date_breaks = "4 month", date_labels = "%b-%Y") +
+  theme(
+    legend.position = "none",
+    panel.background = element_blank(),
+    axis.text = element_text(colour = "black", size = 10, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11), legend.key = element_blank(),
+    axis.text.x = element_text(angle = 60, hjust = 1)
+  )
+
+fits_sgss
+if (save_plot==1){
+  save(fits_sgss, file = here("output", "fits_sgss.rdata"))
+}
+
+######## Lindesmith seroprevallence children 
+x_d <- c(1, 3, 5, 7, 9, 11) # bin x axis positions
+
+id<-which(!is.na(data$sero1))
+
+sero_obs<-c(data$sero1[id], data$sero2[id], data$sero3[id], data$sero4[id],
+            data$sero5[id], data$sero6[id])*100
+
+df_d <- data.frame(
+  x = x_d,
+  sero = sero_obs,
+  low = sero_obs,
+  up = sero_obs
+)
+
 
 id<-which(sims["t",1,]%in%
             data$time_end[which(!is.na(data$sero1))])
+
 sero_model<-rbind(
-  sims['seroprev1.2',,id],
-  sims['seroprev2.3',,id],
-  sims['seroprev3.4',,id],
-  sims['seroprev4.5',,id],
-  sims['seroprev5.6',,id],
-  sims['seroprev6.7',,id]
+  sims['seroprev_num1.2',,id]/sims['seroprev_den1.2',,id] ,
+  sims['seroprev_num2.3',,id]/sims['seroprev_den2.3',,id] ,
+  sims['seroprev_num3.4',,id]/sims['seroprev_den3.4',,id] ,
+  sims['seroprev_num4.5',,id]/sims['seroprev_den4.5',,id] ,
+  sims['seroprev_num5.6',,id]/sims['seroprev_den5.6',,id] ,
+  sims['seroprev_num6.7',,id]/sims['seroprev_den6.7',,id] )*100
+
+
+
+df_qtls <- as.data.frame(rowQuantiles((sero_model),
+                                      probs = c(0.025, 0.5, 0.975)))
+
+df1 <- data.frame(t(sero_model)) 
+colnames(df1) <- paste(c("0_1","1_2","2_3","3_4","5_6","6_7"))
+df_m <- reshape2::melt(df1)
+df_m$variable <- as.factor(df_m$variable)
+df_d$x <- factor(c("0_1","1_2","2_3","3_4","5_6","6_7"))
+df_qtls$x <- factor(c("0_1","1_2","2_3","3_4","5_6","6_7"))
+
+
+viol_col <-  "yellow3"
+err_col <- "black"
+data_col <- "black"
+
+fits_sero <- ggplot() +
+  geom_violin(
+    data = df_m,
+    aes(x = variable, y = value, fill = "Posterior Density"),
+    draw_quantiles = c(0.5),
+    width = 0.8,
+    linetype = 1,
+    trim = FALSE,
+    color = "white",
+    alpha = 0.5
+  ) +
+  geom_point(data = df_d, mapping = aes(x = x, y = sero, color = "Data (95% CI)"), size = 2, shape = 15) +
+  geom_errorbar(
+    mapping = aes(x = x, ymin = low, ymax = up), data = df_d,
+    width = .2, position = position_dodge(.9)
+  ) +
+  labs(title = "Model vs Seroprevalence", x = "Age group (years)", y = "Seroprevalence (%)") +
+  theme_minimal() +
+  ylim(0, 100) +
+  scale_fill_manual(name = "", values = c("Posterior Density" = viol_col)) +
+  scale_color_manual(name = "", values = c("Data (95% CI)" = data_col)) +
+  theme(
+    legend.position = "none",
+    panel.background = element_blank(),
+    axis.text = element_text(colour = "black", size = 12, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11), legend.key = element_blank(),
+    axis.text.x = element_text(angle = 60, hjust = 1)
+  )
+
+fits_sero
+if (save_plot==1){
+  save(fits_sero, file = here("output","fits_sero.rdata"))
+}
+
+
+
+######## harris strain type  
+
+
+id<-which(sims["t",1,]%in%
+            data$time_end[which(!is.na(data$g1_prev))])
+
+tmp_model<-
+  (sims['cases_year1_str2',,id]+
+     sims['cases_year2_str2',,id]+
+     sims['cases_year3_str2',,id]+
+     sims['cases_year4_str2',,id]+
+     sims['cases_year5_str2',,id])/
+  (sims['cases_year1_str1',,id]+
+     sims['cases_year2_str1',,id]+
+     sims['cases_year3_str1',,id]+
+     sims['cases_year4_str1',,id]+
+     sims['cases_year5_str1',,id]+
+     sims['cases_year1_str2',,id]+
+     sims['cases_year2_str2',,id]+
+     sims['cases_year3_str2',,id]+
+     sims['cases_year4_str2',,id]+
+     sims['cases_year5_str2',,id])
+
+
+if (fake==1){
+  
+  g2<-rnorm(n = nsim, mean = 88, sd = 3 )
+  g2[g2>100]<-100
+  g1<-rnorm(n = nsim, mean = 100-88, sd = 3 )
+  g1[g1<0]<-0
+  
+  strain_model<-cbind(g1, g2)
+} else{
+  strain_model<-cbind(tmp_model, 1-tmp_model)*100
+}
+
+
+id<-which(!is.na(data$g1_prev))
+gii_obs<-c(data$g1_prev[id])
+strain_obs<-c(gii_obs, 1-gii_obs)*100
+
+x_d <- c(1,3) # bin x axis positions
+
+
+df_d <- data.frame(
+  x = x_d,
+  strain = strain_obs,
+  low = strain_obs,
+  up = strain_obs
 )
-id<-which(!is.na(data$sero1))
-sero_obs<-c(data$sero1[id],
-            data$sero2[id],
-            data$sero3[id],
-            data$sero4[id],
-            data$sero5[id],
-            data$sero6[id])
-windows()
-matplot(c(1,2,3,4,5,6),sero_model, type = "p", col = "#00000011", 
-        xlab = "Age", ylab = "Seropositivity", las = 1,ylim=c(0,1),xaxt="n")
-xtick<-seq(1, 6, by=1)
-axis(side=1, at=xtick, labels = c("0_1","1_2","2_3","3_4","5_6","6_7"))
-arrows(x0=c(1,2,3,4,5,6), y0=sero$V2, 
-       x1=c(1,2,3,4,5,6), y1=sero$V3,
-       code=3, angle=90, length=0.1)
-points(sero_obs , pch = 19, col = "red")
+
+df_qtls <- as.data.frame(rowQuantiles(t(strain_model),
+                                      probs = c(0.025, 0.5, 0.975)))
+
+df1 <- data.frame((strain_model)) 
+colnames(df1) <- paste(c("GI","GII"))
+df_m <- reshape2::melt(df1)
+df_m$variable <- as.factor(df_m$variable)
+df_d$x <- factor(c("GI","GII"))
+df_qtls$x <- factor(c("GI","GII"))
 
 
-# 
+viol_col <-  "orange"
+err_col <- "black"
+data_col <- "black"
+
+fits_strain <- ggplot() +
+  geom_violin(
+    data = df_m,
+    aes(x = variable, y = value, fill = "Posterior Density"),
+    draw_quantiles = c(0.5),
+    width = 0.8,
+    linetype = 1,
+    trim = FALSE,
+    color = "white",
+    alpha = 0.5
+  ) +
+  geom_point(data = df_d, mapping = aes(x = x, y = strain, color = "Data (95% CI)"), size = 2, shape = 15) +
+  geom_errorbar(
+    mapping = aes(x = x, ymin = low, ymax = up), data = df_d,
+    width = .2, position = position_dodge(.9)
+  ) +
+  labs(title = "Model vs Genogroup type", x = "Genogroup", y = "Proportion (%)") +
+  theme_minimal() +
+  ylim(0, 100) +
+  scale_fill_manual(name = "", values = c("Posterior Density" = viol_col)) +
+  scale_color_manual(name = "", values = c("Data (95% CI)" = data_col)) +
+  theme(
+    legend.position = "none",
+    panel.background = element_blank(),
+    axis.text = element_text(colour = "black", size = 12, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11), legend.key = element_blank(),
+    axis.text.x = element_text(angle = 60, hjust = 1)
+  )
+
+fits_strain
+if (save_plot==1){
+  save(fits_strain, file = here("output","fits_strain.rdata"))
+}
+
+##
+gridExtra::grid.arrange(fits_iid2)
+gridExtra::grid.arrange(fits_sero)
+gridExtra::grid.arrange(fits_sgss)
+gridExtra::grid.arrange(fits_strain)
+

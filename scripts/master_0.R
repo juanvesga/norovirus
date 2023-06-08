@@ -12,7 +12,8 @@ library(profvis)
 library(lubridate)
 #################################
 # 1 Source scripts
-vanHoek<-FALSE
+
+source(here("scripts","load_data.R"))
 source(here("scripts","setup.model.R"))
 source(here("src","model_functions.R"))
 
@@ -20,7 +21,7 @@ stochastic <- 0
 
 #############
 # 2 Create dust object 
-model_path<-here("src","seiar.age.R")
+model_path<-here("src","seiar.age.2strain_alternative.R")
 seiar <- odin.dust::odin_dust(model_path)
 
 #############
@@ -28,7 +29,7 @@ seiar <- odin.dust::odin_dust(model_path)
 if (stochastic==1){
   filter <- mcstate::particle_filter$new(data_all, 
                                          model = seiar, 
-                                         n_particles = 10,
+                                         n_particles = 11,
                                          compare = compare, 
                                          index = index)
   }else{
@@ -37,6 +38,13 @@ if (stochastic==1){
                                                 model = seiar, 
                                                 compare = compare, 
                                                 index = index)
+  
+  
+  filter2 <- mcstate::particle_deterministic$new(data=data_empty,
+                                                model = seiar,
+                                                compare=compare_empty,
+                                                index = index)
+  
 }
 
 
@@ -46,12 +54,14 @@ source(here("scripts","pMCMC_1.R"))
 
 
 
+
+
 ## Load pre-saved samples
 if (stochastic==1){
   load(here("output","processed_samples.RData")) 
 }else{
   
-  load(here("output","processed_samples_det.RData"))  
+  load(here("output","processed_samples_det_full.RData"))  
   
 }
 
@@ -66,4 +76,9 @@ source(here("scripts","plot_model_fits.R"))
 ###########
 # 6 plot model fits 
 source(here("scripts","parameter_plot.R"))
+
+
+###########
+# 7 plot model dynamics 
+source(here("scripts","plot_dynamics.R"))
 

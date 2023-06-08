@@ -7,7 +7,7 @@ make_transform <- function(c_mat,
                            school,
                            n_school_steps,
                            n_age,
-                           aging_mat,
+                           aging_vec,
                            ini,
                            pop,
                            scaling_fac) {
@@ -15,18 +15,23 @@ make_transform <- function(c_mat,
   function(theta) {
     
     theta_back<-c(
-      beta = theta[["beta"]]/scaling_fac[["beta"]],
-      aduRR = theta[["aduRR"]]/scaling_fac[["aduRR"]],
+      beta_j = theta[["beta_j"]]/scaling_fac[["beta_j"]],
+      beta_k = theta[["beta_k"]]/scaling_fac[["beta_k"]],
       delta = theta[["delta"]]/scaling_fac[["delta"]],
       rho = theta[["rho"]]/scaling_fac[["rho"]],
       tau = theta[["tau"]]/scaling_fac[["tau"]],
-      w1 = theta[["w1"]]/scaling_fac[["w1"]],
-      repfac=theta[["repfac"]]/scaling_fac[["repfac"]]
+      w1_j = theta[["w1_j"]]/scaling_fac[["w1_j"]],
+      w1_k = theta[["w1_j"]]/scaling_fac[["w1_j"]],
+      repfac=theta[["repfac"]]/scaling_fac[["repfac"]],
+      crossp_jk=theta[["crossp_jk"]]/scaling_fac[["crossp_jk"]],
+      crossp_kj=theta[["crossp_kj"]]/scaling_fac[["crossp_kj"]]
     )
+
+    c_mat[adult_id,adult_id]<-c_mat[adult_id,adult_id] * (theta[["aduRR"]]/scaling_fac[["aduRR"]])
+    c_mat2[adult_id,adult_id]<-c_mat2[adult_id,adult_id]* (theta[["aduRR"]]/scaling_fac[["aduRR"]])
     
-    # c_mat[adult_id,adult_id]<-c_mat[adult_id,adult_id]* theta_back[["aduRR"]]
-    # c_mat2[adult_id,adult_id]<-c_mat2[adult_id,adult_id]* theta_back[["aduRR"]]
-    # 
+    #print(theta/unlist(scaling_fac))
+
     c(list(
       pop  = pop,
       init  = ini,
@@ -36,7 +41,7 @@ make_transform <- function(c_mat,
       school_step= as.double(school),
       n_school_steps=n_school_steps,
       N_age = n_age,
-      aging_mat = aging_mat ),
+      aging_vec = aging_vec ),
       as.list(theta_back))
   }
 }
@@ -47,12 +52,12 @@ make_transform <- function(c_mat,
 compare <- function(state, observed, pars = NULL) {
   exp_noise <- 1e6
 
- pop1<-sum(pars$pop[1:4])
- pop2<-sum(pars$pop[5:8])
- pop3<-sum(pars$pop[9:13])
- pop4<-sum(pars$pop[14])
- 
- noise<-rexp(n = length(state['cases_year1',]), rate = exp_noise)
+ # pop1<-sum(pars$pop[1:4])
+ # pop2<-sum(pars$pop[5:8])
+ # pop3<-sum(pars$pop[9:13])
+ # pop4<-sum(pars$pop[14])
+
+ noise<-rexp(n = length(state['cases_year1_str1',]), rate = exp_noise)
 
  # modelled_irate <-rbind(
  # 1000*(state['cases_year1',]/pop1) + noise,
@@ -62,13 +67,13 @@ compare <- function(state, observed, pars = NULL) {
  
   # Incidence rates per 1000 py
    modelled_irate <-rbind(
-     1000*(state['cases_year1',]/(state['person_year1',]/365)) + noise,
-     1000*(state['cases_year2',]/(state['person_year2',]/365)) + noise,
-     1000*(state['cases_year3',]/(state['person_year3',]/365)) + noise,
-     1000*(state['cases_year4',]/(state['person_year4',]/365)) + noise,
-     1000*(state['cases_year5',]/(state['person_year5',]/365)) + noise)
+     1000*( (state['cases_year1_str1',]+state['cases_year1_str2',])/(state['person_year1',]/365)) + noise,
+     1000*((state['cases_year2_str1',]+state['cases_year2_str2',])/(state['person_year2',]/365)) + noise,
+     1000*((state['cases_year3_str1',]+state['cases_year3_str2',])/(state['person_year3',]/365)) + noise,
+     1000*((state['cases_year4_str1',]+state['cases_year4_str2',])/(state['person_year4',]/365)) + noise,
+     1000*((state['cases_year5_str1',]+state['cases_year5_str2',])/(state['person_year5',]/365)) + noise)
    
-   
+  
   observations_irate <-rbind(
     observed$cases_a1,
     observed$cases_a2,
@@ -76,7 +81,34 @@ compare <- function(state, observed, pars = NULL) {
     observed$cases_a4,
     observed$cases_a5
   ) 
-  llk_irate<-colSums(dpois(x = observations_irate, lambda = modelled_irate, log = TRUE),na.rm=TRUE)
+  llk_irate<-colSums(dpois(x = observations_irate, lambda = modelled_irate, log = TRUE)/5,na.rm=TRUE)
+
+  # Strain prevalence in IID2
+  modelled_strain<-rbind(
+    ((state['cases_year1_str2',]+
+      state['cases_year2_str2',]+
+       state['cases_year3_str2',]+
+       state['cases_year4_str2',]+
+       state['cases_year5_str2',])/
+      (state['cases_year1_str2',]+
+         state['cases_year2_str1',]+
+         state['cases_year3_str1',]+
+         state['cases_year4_str1',]+
+         state['cases_year5_str1',]+
+         state['cases_year1_str2',]+
+         state['cases_year2_str2',]+
+         state['cases_year3_str2',]+
+         state['cases_year4_str2',]+
+         state['cases_year5_str2',])) + noise)
+  
+  observed_event<-40
+  
+  observed_size<-476
+  
+  llk_strain<-dbinom(x=round(observed_event),
+                           size = observed_size,
+                           prob = modelled_strain,
+                           log = TRUE)
 
   # # Weekly cases reported 0-4
   # 
@@ -101,19 +133,19 @@ compare <- function(state, observed, pars = NULL) {
   # 
   # Weekly cases reported 65+
   
-  modelled_report<-state['reported_wk',]+ noise
+  modelled_report<-state['reported_wk',] + noise
   observations_reported<-observed$reported
   llk_reported<-dpois(x = observations_reported, 
-                          lambda = modelled_report, log = TRUE)
+                          lambda = modelled_report, log = TRUE)/354
   
   # Seroprevalence in children 1 to 7
   modelled_sero<-rbind(
-    state['seroprev1.2',]+ noise,
-    state['seroprev2.3',]+ noise,
-    state['seroprev3.4',]+ noise,
-    state['seroprev4.5',]+ noise,
-    state['seroprev5.6',]+ noise,
-    state['seroprev6.7',]+ noise
+    state['seroprev_num1.2',]/state['seroprev_den1.2',] + noise,
+    state['seroprev_num2.3',]/state['seroprev_den2.3',] + noise,
+    state['seroprev_num3.4',]/state['seroprev_den3.4',] + noise,
+    state['seroprev_num4.5',]/state['seroprev_den4.5',] + noise,
+    state['seroprev_num5.6',]/state['seroprev_den5.6',] + noise,
+    state['seroprev_num6.7',]/state['seroprev_den6.7',] + noise
     )
 
   observed_event<-rbind(
@@ -141,6 +173,7 @@ compare <- function(state, observed, pars = NULL) {
   
   
   posterior<-colSums(rbind(llk_irate,
+                           llk_strain,
                            llk_reported,
                            # llk_reported_04,
                            # llk_reported_65,
@@ -154,50 +187,134 @@ compare <- function(state, observed, pars = NULL) {
 }
 
 index <- function(info) {
-  list(run = c(cases_year1 = info$index$cases_year[1],
-               cases_year2 = info$index$cases_year[2],
-               cases_year3 = info$index$cases_year[3],
-               cases_year4 = info$index$cases_year[4],
-               cases_year5 = info$index$cases_year[5],
+  list(run = c(cases_year1_str1 = info$index$cases_year_str1[1],
+               cases_year2_str1 = info$index$cases_year_str1[2],
+               cases_year3_str1 = info$index$cases_year_str1[3],
+               cases_year4_str1 = info$index$cases_year_str1[4],
+               cases_year5_str1 = info$index$cases_year_str1[5],
+               cases_year1_str2 = info$index$cases_year_str2[1],
+               cases_year2_str2 = info$index$cases_year_str2[2],
+               cases_year3_str2 = info$index$cases_year_str2[3],
+               cases_year4_str2 = info$index$cases_year_str2[4],
+               cases_year5_str2 = info$index$cases_year_str2[5],
+               
+               cases_day1_str1 = info$index$cases_day_str1[1],
+               cases_day2_str1 = info$index$cases_day_str1[2],
+               cases_day3_str1 = info$index$cases_day_str1[3],
+               cases_day4_str1 = info$index$cases_day_str1[4],
+               cases_day5_str1 = info$index$cases_day_str1[5],
+               cases_day1_str2 = info$index$cases_day_str2[1],
+               cases_day2_str2 = info$index$cases_day_str2[2],
+               cases_day3_str2 = info$index$cases_day_str2[3],
+               cases_day4_str2 = info$index$cases_day_str2[4],
+               cases_day5_str2 = info$index$cases_day_str2[5],
+               
                person_year1 = info$index$person_year[1],
                person_year2 = info$index$person_year[2],
                person_year3 = info$index$person_year[3],
                person_year4 = info$index$person_year[4],
                person_year5 = info$index$person_year[5],
                reported_wk = info$index$reported_wk,
-               seroprev1.2 = info$index$seroprev[2],
-               seroprev2.3 = info$index$seroprev[3],
-               seroprev3.4 = info$index$seroprev[4],
-               seroprev4.5 = info$index$seroprev[5],
-               seroprev5.6 = info$index$seroprev[6],
-               seroprev6.7 = info$index$seroprev[7]
-               
-               
-               ),
+               seroprev_num1.2 = info$index$seroprev_num[2],
+               seroprev_num2.3 = info$index$seroprev_num[3],
+               seroprev_num3.4 = info$index$seroprev_num[4],
+               seroprev_num4.5 = info$index$seroprev_num[5],
+               seroprev_num5.6 = info$index$seroprev_num[6],
+               seroprev_num6.7 = info$index$seroprev_num[7],
+               seroprev_den1.2 = info$index$seroprev_den[2],
+               seroprev_den2.3 = info$index$seroprev_den[3],
+               seroprev_den3.4 = info$index$seroprev_den[4],
+               seroprev_den4.5 = info$index$seroprev_den[5],
+               seroprev_den5.6 = info$index$seroprev_den[6],
+               seroprev_den6.7 = info$index$seroprev_den[7],
+               S      = info$index$S,    
+               Ek      = info$index$EK,      
+               Ik      = info$index$IK,    
+               Ak      = info$index$AK,
+               Rk      = info$index$RK),
+       
        state = c(
          t = info$index$time,
-         inc_day = info$index$infections_day,
-         cases_year1 = info$index$cases_year[1],
-         cases_year2 = info$index$cases_year[2],
-         cases_year3 = info$index$cases_year[3],
-         cases_year4 = info$index$cases_year[4],
-         cases_year5 = info$index$cases_year[5],
+         inc_day_j = info$index$infections_day_j,
+         inc_day_k = info$index$infections_day_k,
+         cases_year1_str1 = info$index$cases_year_str1[1],
+         cases_year2_str1 = info$index$cases_year_str1[2],
+         cases_year3_str1 = info$index$cases_year_str1[3],
+         cases_year4_str1 = info$index$cases_year_str1[4],
+         cases_year5_str1 = info$index$cases_year_str1[5],
+         cases_year1_str2 = info$index$cases_year_str2[1],
+         cases_year2_str2 = info$index$cases_year_str2[2],
+         cases_year3_str2 = info$index$cases_year_str2[3],
+         cases_year4_str2 = info$index$cases_year_str2[4],
+         cases_year5_str2 = info$index$cases_year_str2[5],
+         cases_day1_str1 = info$index$cases_day_str1[1],
+         cases_day2_str1 = info$index$cases_day_str1[2],
+         cases_day3_str1 = info$index$cases_day_str1[3],
+         cases_day4_str1 = info$index$cases_day_str1[4],
+         cases_day5_str1 = info$index$cases_day_str1[5],
+         cases_day1_str2 = info$index$cases_day_str2[1],
+         cases_day2_str2 = info$index$cases_day_str2[2],
+         cases_day3_str2 = info$index$cases_day_str2[3],
+         cases_day4_str2 = info$index$cases_day_str2[4],
+         cases_day5_str2 = info$index$cases_day_str2[5],
          person_year1 = info$index$person_year[1],
          person_year2 = info$index$person_year[2],
          person_year3 = info$index$person_year[3],
          person_year4 = info$index$person_year[4],
          person_year5 = info$index$person_year[5],
          reported_wk = info$index$reported_wk,
+         seroprev_num1.2 = info$index$seroprev_num[2],
+         seroprev_num2.3 = info$index$seroprev_num[3],
+         seroprev_num3.4 = info$index$seroprev_num[4],
+         seroprev_num4.5 = info$index$seroprev_num[5],
+         seroprev_num5.6 = info$index$seroprev_num[6],
+         seroprev_num6.7 = info$index$seroprev_num[7],
+         seroprev_den1.2 = info$index$seroprev_den[2],
+         seroprev_den2.3 = info$index$seroprev_den[3],
+         seroprev_den3.4 = info$index$seroprev_den[4],
+         seroprev_den4.5 = info$index$seroprev_den[5],
+         seroprev_den5.6 = info$index$seroprev_den[6],
+         seroprev_den6.7 = info$index$seroprev_den[7],
          seroprev1.2 = info$index$seroprev[2],
          seroprev2.3 = info$index$seroprev[3],
          seroprev3.4 = info$index$seroprev[4],
          seroprev4.5 = info$index$seroprev[5],
          seroprev5.6 = info$index$seroprev[6],
-         seroprev6.7 = info$index$seroprev[7]
+         seroprev6.7 = info$index$seroprev[7],
+         S      = info$index$S,    
+         Ek      = info$index$EK,      
+         Ik      = info$index$IK,    
+         Ak      = info$index$AK,
+         Rk      = info$index$RK
          
        )
   )
 }
+
+
+compare_empty <- function(state, observed, pars = NULL) {
+  
+  llk<- -100
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Plot fits 
 plot_fits<-function(sims,data){
