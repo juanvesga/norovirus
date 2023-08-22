@@ -130,8 +130,19 @@ agg_synth$day<-which(days_vec%in%agg_synth$date)
 ## Harris strains data 
 strains<- read.csv(here("data","Harris_IID2_strains.csv"), header=TRUE)#, sep=,)
 strains<-strains[strains$genotype!="Mixed",]
-GI.prev<- sum(strains$samples[strains$genogroup=="GI"])/
+
+GI3.prev<- sum(strains$samples[strains$genotype=="GI.3"])/
   sum(strains$samples)
+
+GI.prev<- (sum(strains$samples[strains$genogroup=="GI"]) - 
+  sum(strains$samples[strains$genotype=="GI.3"]))/sum(strains$samples)
+
+
+GII4.prev<- sum(strains$samples[strains$genotype=="GII.4"])/
+  sum(strains$samples)
+
+GII.prev<- (sum(strains$samples[strains$genogroup=="GII"]) - 
+              sum(strains$samples[strains$genotype=="GII.4"]))/sum(strains$samples)
 
 
 ## Get all data in mcstate data format
@@ -143,7 +154,10 @@ d <- data.frame(
   cases_a3 = c(round(data_iid2.c4$per1000personyears[3]),rep(NA,nrow(agg_synth)),NA),
   cases_a4 = c(round(data_iid2.c4$per1000personyears[4]),rep(NA,nrow(agg_synth)),NA),
   cases_a5 = c(round(data_iid2.c4$per1000personyears[5]),rep(NA,nrow(agg_synth)),NA),
-  g1_prev= c(GI.prev,rep(NA,nrow(agg_synth)),NA),
+  gi3_prev = c(GI3.prev,rep(NA,nrow(agg_synth)),NA),
+  gi_prev  = c(GI.prev,rep(NA,nrow(agg_synth)),NA),
+  gii4_prev = c(GII4.prev,rep(NA,nrow(agg_synth)),NA),
+  gii_prev = c(GII.prev,rep(NA,nrow(agg_synth)),NA),
   reported = c(NA,agg_synth$count_cases,NA),
   sero1    = c(NA,rep(NA,nrow(agg_synth)),sero$V1[1]), 
   sero2    = c(NA,rep(NA,nrow(agg_synth)),sero$V1[2]),

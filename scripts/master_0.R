@@ -21,7 +21,8 @@ stochastic <- 0
 
 #############
 # 2 Create dust object 
-model_path<-here("src","seiar.age.2strain_alternative.R")
+#model_path<-here("src","seiar.age.2strain_alternative.R")
+model_path<-here("src","seiar.age.4strain.imm.R")
 seiar <- odin.dust::odin_dust(model_path)
 
 #############
@@ -50,8 +51,13 @@ if (stochastic==1){
 
 ###########
 # 4 run  pMCMC
+# Controls 
+start_from_best <-TRUE
+n_steps  <- 50000
+n_burnin <- round(n_steps*0.5)
+n_out    <- round(n_steps*0.1)
+n_thin   <- round((n_steps-n_burnin)/n_out)
 source(here("scripts","pMCMC_1.R"))
-
 
 
 
@@ -61,10 +67,9 @@ if (stochastic==1){
   load(here("output","processed_samples.RData")) 
 }else{
   
-  load(here("output","processed_samples_det_full.RData"))  
+  load(here("output","processed_samples_det_4str_simplex.RData")) 
   
 }
-
 
 
 

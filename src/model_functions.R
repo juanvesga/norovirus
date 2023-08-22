@@ -17,21 +17,27 @@ make_transform <- function(c_mat,
     theta_back<-c(
       beta_j = theta[["beta_j"]]/scaling_fac[["beta_j"]],
       beta_k = theta[["beta_k"]]/scaling_fac[["beta_k"]],
+      beta_j = theta[["beta_l"]]/scaling_fac[["beta_l"]],
+      beta_k = theta[["beta_m"]]/scaling_fac[["beta_m"]],
       delta = theta[["delta"]]/scaling_fac[["delta"]],
       rho = theta[["rho"]]/scaling_fac[["rho"]],
       tau = theta[["tau"]]/scaling_fac[["tau"]],
       w1_j = theta[["w1_j"]]/scaling_fac[["w1_j"]],
       w1_k = theta[["w1_j"]]/scaling_fac[["w1_j"]],
+      w1_j = theta[["w1_l"]]/scaling_fac[["w1_l"]],
+      w1_k = theta[["w1_m"]]/scaling_fac[["w1_m"]],
       repfac=theta[["repfac"]]/scaling_fac[["repfac"]],
       crossp_jk=theta[["crossp_jk"]]/scaling_fac[["crossp_jk"]],
-      crossp_kj=theta[["crossp_kj"]]/scaling_fac[["crossp_kj"]]
+      crossp_kj=theta[["crossp_kj"]]/scaling_fac[["crossp_kj"]],
+      crossp_jk=theta[["crossp_lm"]]/scaling_fac[["crossp_lm"]],
+      crossp_kj=theta[["crossp_ml"]]/scaling_fac[["crossp_ml"]]
     )
-
+   
     c_mat[adult_id,adult_id]<-c_mat[adult_id,adult_id] * (theta[["aduRR"]]/scaling_fac[["aduRR"]])
     c_mat2[adult_id,adult_id]<-c_mat2[adult_id,adult_id]* (theta[["aduRR"]]/scaling_fac[["aduRR"]])
     
     #print(theta/unlist(scaling_fac))
-
+    
     c(list(
       pop  = pop,
       init  = ini,
@@ -51,28 +57,36 @@ make_transform <- function(c_mat,
 ## Compare 
 compare <- function(state, observed, pars = NULL) {
   exp_noise <- 1e6
-
- # pop1<-sum(pars$pop[1:4])
- # pop2<-sum(pars$pop[5:8])
- # pop3<-sum(pars$pop[9:13])
- # pop4<-sum(pars$pop[14])
-
- noise<-rexp(n = length(state['cases_year1_str1',]), rate = exp_noise)
-
- # modelled_irate <-rbind(
- # 1000*(state['cases_year1',]/pop1) + noise,
- # 1000*(state['cases_year2',]/pop2) + noise,
- # 1000*(state['cases_year3',]/pop3) + noise,
- # 1000*(state['cases_year4',]/pop4) + noise)
- 
+  
+  noise<-rexp(n = length(state['inc_year_gii4_1',]), rate = exp_noise)
+  
   # Incidence rates per 1000 py
-   modelled_irate <-rbind(
-     1000*( (state['cases_year1_str1',]+state['cases_year1_str2',])/(state['person_year1',]/365)) + noise,
-     1000*((state['cases_year2_str1',]+state['cases_year2_str2',])/(state['person_year2',]/365)) + noise,
-     1000*((state['cases_year3_str1',]+state['cases_year3_str2',])/(state['person_year3',]/365)) + noise,
-     1000*((state['cases_year4_str1',]+state['cases_year4_str2',])/(state['person_year4',]/365)) + noise,
-     1000*((state['cases_year5_str1',]+state['cases_year5_str2',])/(state['person_year5',]/365)) + noise)
-   
+  modelled_irate <-rbind(
+    1000*( (state['inc_year_gii4_1',]+
+              state['inc_year_gii_1',]+
+              state['inc_year_gi3_1',]+
+              state['inc_year_gi_1',])/(state['person_year1',]/365)) + noise,
+    
+    1000*((state['inc_year_gii4_2',]+
+             state['inc_year_gii4_2',]+
+             state['inc_year_gi3_2',]+
+             state['inc_year_gi_2',])/(state['person_year2',]/365)) + noise,
+    
+    1000*((state['inc_year_gii4_3',]+
+             state['inc_year_gii4_3',]+
+             state['inc_year_gi3_3',]+
+             state['inc_year_gi_3',])/(state['person_year3',]/365)) + noise,
+    
+    1000*((state['inc_year_gii4_4',]+
+             state['inc_year_gii4_4',]+
+             state['inc_year_gi3_4',]+
+             state['inc_year_gi_4',])/(state['person_year4',]/365)) + noise, 
+    
+    1000*((state['inc_year_gii4_5',]+
+             state['inc_year_gii4_5',]+
+             state['inc_year_gi3_5',]+
+             state['inc_year_gi_5',])/(state['person_year5',]/365)) + noise)
+  
   
   observations_irate <-rbind(
     observed$cases_a1,
@@ -82,34 +96,143 @@ compare <- function(state, observed, pars = NULL) {
     observed$cases_a5
   ) 
   llk_irate<-colSums(dpois(x = observations_irate, lambda = modelled_irate, log = TRUE)/5,na.rm=TRUE)
-
-  # Strain prevalence in IID2
-  modelled_strain<-rbind(
-    ((state['cases_year1_str2',]+
-      state['cases_year2_str2',]+
-       state['cases_year3_str2',]+
-       state['cases_year4_str2',]+
-       state['cases_year5_str2',])/
-      (state['cases_year1_str2',]+
-         state['cases_year2_str1',]+
-         state['cases_year3_str1',]+
-         state['cases_year4_str1',]+
-         state['cases_year5_str1',]+
-         state['cases_year1_str2',]+
-         state['cases_year2_str2',]+
-         state['cases_year3_str2',]+
-         state['cases_year4_str2',]+
-         state['cases_year5_str2',])) + noise)
+  
+  # Strain prevalence GI in IID2
+  modelled_gi<-rbind(
+    ((state['inc_year_gi3_1',]+
+        state['inc_year_gi3_1',]+
+        state['inc_year_gi3_2',]+
+        state['inc_year_gi3_3',]+
+        state['inc_year_gi3_4',]+
+        state['inc_year_gi3_5',]+
+        state['inc_year_gi_1',]+
+        state['inc_year_gi_1',]+
+        state['inc_year_gi_2',]+
+        state['inc_year_gi_3',]+
+        state['inc_year_gi_4',]+
+        state['inc_year_gi_5',]) /
+       (  state['inc_year_gii4_1',]+
+            state['inc_year_gii4_1',]+
+            state['inc_year_gii4_2',]+
+            state['inc_year_gii4_3',]+
+            state['inc_year_gii4_4',]+
+            state['inc_year_gii4_5',]+
+            state['inc_year_gii_1',]+
+            state['inc_year_gii_1',]+
+            state['inc_year_gii_2',]+
+            state['inc_year_gii_3',]+
+            state['inc_year_gii_4',]+
+            state['inc_year_gii_5',]+
+            state['inc_year_gi3_1',]+
+            state['inc_year_gi3_1',]+
+            state['inc_year_gi3_2',]+
+            state['inc_year_gi3_3',]+
+            state['inc_year_gi3_4',]+
+            state['inc_year_gi3_5',]+
+            state['inc_year_gi_1',]+
+            state['inc_year_gi_1',]+
+            state['inc_year_gi_2',]+
+            state['inc_year_gi_3',]+
+            state['inc_year_gi_4',]+
+            state['inc_year_gi_5',])) + noise)
   
   observed_event<-40
   
   observed_size<-476
   
-  llk_strain<-dbinom(x=round(observed_event),
-                           size = observed_size,
-                           prob = modelled_strain,
-                           log = TRUE)
-
+  llk_gi<-dbinom(x=round(observed_event),
+                     size = observed_size,
+                     prob =  modelled_gi,
+                     log = TRUE)
+  
+  
+  # Strain prevalence GII.4 in IID2
+  modelled_gii4<-rbind(
+    ((state['inc_year_gii4_1',]+
+        state['inc_year_gii4_2',]+
+        state['inc_year_gii4_3',]+
+        state['inc_year_gii4_4',]+
+        state['inc_year_gii4_5',]) /
+       (  state['inc_year_gii4_1',]+
+            state['inc_year_gii4_1',]+
+            state['inc_year_gii4_2',]+
+            state['inc_year_gii4_3',]+
+            state['inc_year_gii4_4',]+
+            state['inc_year_gii4_5',]+
+            state['inc_year_gii_1',]+
+            state['inc_year_gii_1',]+
+            state['inc_year_gii_2',]+
+            state['inc_year_gii_3',]+
+            state['inc_year_gii_4',]+
+            state['inc_year_gii_5',]+
+            state['inc_year_gi3_1',]+
+            state['inc_year_gi3_1',]+
+            state['inc_year_gi3_2',]+
+            state['inc_year_gi3_3',]+
+            state['inc_year_gi3_4',]+
+            state['inc_year_gi3_5',]+
+            state['inc_year_gi_1',]+
+            state['inc_year_gi_1',]+
+            state['inc_year_gi_2',]+
+            state['inc_year_gi_3',]+
+            state['inc_year_gi_4',]+
+            state['inc_year_gi_5',])) + noise)
+  
+  
+  observed_event<-228
+  
+  observed_size<-476
+  
+  llk_gii4<-dbinom(x=round(observed_event),
+                 size = observed_size,
+                 prob =  modelled_gii4,
+                 log = TRUE)
+  
+  
+  # Strain prevalence GI.3 in IID2
+  modelled_gi3<-rbind(
+    ((state['inc_year_gi3_1',]+
+        state['inc_year_gi3_2',]+
+        state['inc_year_gi3_3',]+
+        state['inc_year_gi3_4',]+
+        state['inc_year_gi3_5',]) /
+       (  state['inc_year_gii4_1',]+
+            state['inc_year_gii4_1',]+
+            state['inc_year_gii4_2',]+
+            state['inc_year_gii4_3',]+
+            state['inc_year_gii4_4',]+
+            state['inc_year_gii4_5',]+
+            state['inc_year_gii_1',]+
+            state['inc_year_gii_1',]+
+            state['inc_year_gii_2',]+
+            state['inc_year_gii_3',]+
+            state['inc_year_gii_4',]+
+            state['inc_year_gii_5',]+
+            state['inc_year_gi3_1',]+
+            state['inc_year_gi3_1',]+
+            state['inc_year_gi3_2',]+
+            state['inc_year_gi3_3',]+
+            state['inc_year_gi3_4',]+
+            state['inc_year_gi3_5',]+
+            state['inc_year_gi_1',]+
+            state['inc_year_gi_1',]+
+            state['inc_year_gi_2',]+
+            state['inc_year_gi_3',]+
+            state['inc_year_gi_4',]+
+            state['inc_year_gi_5',])) + noise)
+  
+  
+  observed_event<-13
+  
+  observed_size<-476
+  
+  llk_gi3<-dbinom(x=round(observed_event),
+                   size = observed_size,
+                   prob =  modelled_gi3,
+                   log = TRUE)
+  
+  
+  
   # # Weekly cases reported 0-4
   # 
   # modelled_report<-state['reported_wk0_4',]
@@ -136,7 +259,7 @@ compare <- function(state, observed, pars = NULL) {
   modelled_report<-state['reported_wk',] + noise
   observations_reported<-observed$reported
   llk_reported<-dpois(x = observations_reported, 
-                          lambda = modelled_report, log = TRUE)/354
+                      lambda = modelled_report, log = TRUE)/354
   
   # Seroprevalence in children 1 to 7
   modelled_sero<-rbind(
@@ -146,8 +269,8 @@ compare <- function(state, observed, pars = NULL) {
     state['seroprev_num4.5',]/state['seroprev_den4.5',] + noise,
     state['seroprev_num5.6',]/state['seroprev_den5.6',] + noise,
     state['seroprev_num6.7',]/state['seroprev_den6.7',] + noise
-    )
-
+  )
+  
   observed_event<-rbind(
     observed$sero1*103,
     observed$sero2*107,
@@ -173,41 +296,66 @@ compare <- function(state, observed, pars = NULL) {
   
   
   posterior<-colSums(rbind(llk_irate,
-                           llk_strain,
+                           llk_gi,
+                           llk_gii4,
+                           llk_gi3,
                            llk_reported,
-                           # llk_reported_04,
-                           # llk_reported_65,
-                           # llk_reported_65p,
                            llk_sero
-                           ),na.rm=T)
- # print(posterior)
+  ),na.rm=T)
+  # print(posterior)
   
   return(posterior)
   
 }
 
 index <- function(info) {
-  list(run = c(cases_year1_str1 = info$index$cases_year_str1[1],
-               cases_year2_str1 = info$index$cases_year_str1[2],
-               cases_year3_str1 = info$index$cases_year_str1[3],
-               cases_year4_str1 = info$index$cases_year_str1[4],
-               cases_year5_str1 = info$index$cases_year_str1[5],
-               cases_year1_str2 = info$index$cases_year_str2[1],
-               cases_year2_str2 = info$index$cases_year_str2[2],
-               cases_year3_str2 = info$index$cases_year_str2[3],
-               cases_year4_str2 = info$index$cases_year_str2[4],
-               cases_year5_str2 = info$index$cases_year_str2[5],
+  list(run = c(inc_year_gii4_1 = info$index$inc_year_gii4[1],
+               inc_year_gii4_2 = info$index$inc_year_gii4[2],
+               inc_year_gii4_3 = info$index$inc_year_gii4[3],
+               inc_year_gii4_4 = info$index$inc_year_gii4[4],
+               inc_year_gii4_5 = info$index$inc_year_gii4[5],
                
-               cases_day1_str1 = info$index$cases_day_str1[1],
-               cases_day2_str1 = info$index$cases_day_str1[2],
-               cases_day3_str1 = info$index$cases_day_str1[3],
-               cases_day4_str1 = info$index$cases_day_str1[4],
-               cases_day5_str1 = info$index$cases_day_str1[5],
-               cases_day1_str2 = info$index$cases_day_str2[1],
-               cases_day2_str2 = info$index$cases_day_str2[2],
-               cases_day3_str2 = info$index$cases_day_str2[3],
-               cases_day4_str2 = info$index$cases_day_str2[4],
-               cases_day5_str2 = info$index$cases_day_str2[5],
+               inc_year_gii_1 = info$index$inc_year_gii[1],
+               inc_year_gii_2 = info$index$inc_year_gii[2],
+               inc_year_gii_3 = info$index$inc_year_gii[3],
+               inc_year_gii_4 = info$index$inc_year_gii[4],
+               inc_year_gii_5 = info$index$inc_year_gii[5],
+               
+               inc_year_gi3_1 = info$index$inc_year_gi3[1],
+               inc_year_gi3_2 = info$index$inc_year_gi3[2],
+               inc_year_gi3_3 = info$index$inc_year_gi3[3],
+               inc_year_gi3_4 = info$index$inc_year_gi3[4],
+               inc_year_gi3_5 = info$index$inc_year_gi3[5],
+               
+               inc_year_gi_1 = info$index$inc_year_gi[1],
+               inc_year_gi_2 = info$index$inc_year_gi[2],
+               inc_year_gi_3 = info$index$inc_year_gi[3],
+               inc_year_gi_4 = info$index$inc_year_gi[4],
+               inc_year_gi_5 = info$index$inc_year_gi[5],
+               
+               inc_day_gii4_1 = info$index$inc_day_gii4[1],
+               inc_day_gii4_2 = info$index$inc_day_gii4[2],
+               inc_day_gii4_3 = info$index$inc_day_gii4[3],
+               inc_day_gii4_4 = info$index$inc_day_gii4[4],
+               inc_day_gii4_5 = info$index$inc_day_gii4[5],
+               
+               inc_day_gii_1 = info$index$inc_day_gii[1],
+               inc_day_gii_2 = info$index$inc_day_gii[2],
+               inc_day_gii_3 = info$index$inc_day_gii[3],
+               inc_day_gii_4 = info$index$inc_day_gii[4],
+               inc_day_gii_5 = info$index$inc_day_gii[5],
+               
+               inc_day_gi3_1 = info$index$inc_day_gi3[1],
+               inc_day_gi3_2 = info$index$inc_day_gi3[2],
+               inc_day_gi3_3 = info$index$inc_day_gi3[3],
+               inc_day_gi3_4 = info$index$inc_day_gi3[4],
+               inc_day_gi3_5 = info$index$inc_day_gi3[5],
+               
+               inc_day_gi_1 = info$index$inc_day_gi[1],
+               inc_day_gi_2 = info$index$inc_day_gi[2],
+               inc_day_gi_3 = info$index$inc_day_gi[3],
+               inc_day_gi_4 = info$index$inc_day_gi[4],
+               inc_day_gi_5 = info$index$inc_day_gi[5],
                
                person_year1 = info$index$person_year[1],
                person_year2 = info$index$person_year[2],
@@ -226,37 +374,63 @@ index <- function(info) {
                seroprev_den3.4 = info$index$seroprev_den[4],
                seroprev_den4.5 = info$index$seroprev_den[5],
                seroprev_den5.6 = info$index$seroprev_den[6],
-               seroprev_den6.7 = info$index$seroprev_den[7],
-               S      = info$index$S,    
-               Ek      = info$index$EK,      
-               Ik      = info$index$IK,    
-               Ak      = info$index$AK,
-               Rk      = info$index$RK),
+               seroprev_den6.7 = info$index$seroprev_den[7]),
        
        state = c(
          t = info$index$time,
          inc_day_j = info$index$infections_day_j,
          inc_day_k = info$index$infections_day_k,
-         cases_year1_str1 = info$index$cases_year_str1[1],
-         cases_year2_str1 = info$index$cases_year_str1[2],
-         cases_year3_str1 = info$index$cases_year_str1[3],
-         cases_year4_str1 = info$index$cases_year_str1[4],
-         cases_year5_str1 = info$index$cases_year_str1[5],
-         cases_year1_str2 = info$index$cases_year_str2[1],
-         cases_year2_str2 = info$index$cases_year_str2[2],
-         cases_year3_str2 = info$index$cases_year_str2[3],
-         cases_year4_str2 = info$index$cases_year_str2[4],
-         cases_year5_str2 = info$index$cases_year_str2[5],
-         cases_day1_str1 = info$index$cases_day_str1[1],
-         cases_day2_str1 = info$index$cases_day_str1[2],
-         cases_day3_str1 = info$index$cases_day_str1[3],
-         cases_day4_str1 = info$index$cases_day_str1[4],
-         cases_day5_str1 = info$index$cases_day_str1[5],
-         cases_day1_str2 = info$index$cases_day_str2[1],
-         cases_day2_str2 = info$index$cases_day_str2[2],
-         cases_day3_str2 = info$index$cases_day_str2[3],
-         cases_day4_str2 = info$index$cases_day_str2[4],
-         cases_day5_str2 = info$index$cases_day_str2[5],
+         inc_day_l = info$index$infections_day_l,
+         inc_day_m = info$index$infections_day_m,
+         
+         inc_year_gii4_1 = info$index$inc_year_gii4[1],
+         inc_year_gii4_2 = info$index$inc_year_gii4[2],
+         inc_year_gii4_3 = info$index$inc_year_gii4[3],
+         inc_year_gii4_4 = info$index$inc_year_gii4[4],
+         inc_year_gii4_5 = info$index$inc_year_gii4[5],
+         
+         inc_year_gii_1 = info$index$inc_year_gii[1],
+         inc_year_gii_2 = info$index$inc_year_gii[2],
+         inc_year_gii_3 = info$index$inc_year_gii[3],
+         inc_year_gii_4 = info$index$inc_year_gii[4],
+         inc_year_gii_5 = info$index$inc_year_gii[5],
+         
+         inc_year_gi3_1 = info$index$inc_year_gi3[1],
+         inc_year_gi3_2 = info$index$inc_year_gi3[2],
+         inc_year_gi3_3 = info$index$inc_year_gi3[3],
+         inc_year_gi3_4 = info$index$inc_year_gi3[4],
+         inc_year_gi3_5 = info$index$inc_year_gi3[5],
+         
+         inc_year_gi_1 = info$index$inc_year_gi[1],
+         inc_year_gi_2 = info$index$inc_year_gi[2],
+         inc_year_gi_3 = info$index$inc_year_gi[3],
+         inc_year_gi_4 = info$index$inc_year_gi[4],
+         inc_year_gi_5 = info$index$inc_year_gi[5],
+         
+         inc_day_gii4_1 = info$index$inc_day_gii4[1],
+         inc_day_gii4_2 = info$index$inc_day_gii4[2],
+         inc_day_gii4_3 = info$index$inc_day_gii4[3],
+         inc_day_gii4_4 = info$index$inc_day_gii4[4],
+         inc_day_gii4_5 = info$index$inc_day_gii4[5],
+         
+         inc_day_gii_1 = info$index$inc_day_gii[1],
+         inc_day_gii_2 = info$index$inc_day_gii[2],
+         inc_day_gii_3 = info$index$inc_day_gii[3],
+         inc_day_gii_4 = info$index$inc_day_gii[4],
+         inc_day_gii_5 = info$index$inc_day_gii[5],
+         
+         inc_day_gi3_1 = info$index$inc_day_gi3[1],
+         inc_day_gi3_2 = info$index$inc_day_gi3[2],
+         inc_day_gi3_3 = info$index$inc_day_gi3[3],
+         inc_day_gi3_4 = info$index$inc_day_gi3[4],
+         inc_day_gi3_5 = info$index$inc_day_gi3[5],
+         
+         inc_day_gi_1 = info$index$inc_day_gi[1],
+         inc_day_gi_2 = info$index$inc_day_gi[2],
+         inc_day_gi_3 = info$index$inc_day_gi[3],
+         inc_day_gi_4 = info$index$inc_day_gi[4],
+         inc_day_gi_5 = info$index$inc_day_gi[5],
+         
          person_year1 = info$index$person_year[1],
          person_year2 = info$index$person_year[2],
          person_year3 = info$index$person_year[3],
@@ -274,18 +448,7 @@ index <- function(info) {
          seroprev_den3.4 = info$index$seroprev_den[4],
          seroprev_den4.5 = info$index$seroprev_den[5],
          seroprev_den5.6 = info$index$seroprev_den[6],
-         seroprev_den6.7 = info$index$seroprev_den[7],
-         seroprev1.2 = info$index$seroprev[2],
-         seroprev2.3 = info$index$seroprev[3],
-         seroprev3.4 = info$index$seroprev[4],
-         seroprev4.5 = info$index$seroprev[5],
-         seroprev5.6 = info$index$seroprev[6],
-         seroprev6.7 = info$index$seroprev[7],
-         S      = info$index$S,    
-         Ek      = info$index$EK,      
-         Ik      = info$index$IK,    
-         Ak      = info$index$AK,
-         Rk      = info$index$RK
+         seroprev_den6.7 = info$index$seroprev_den[7]
          
        )
   )
@@ -318,7 +481,7 @@ compare_empty <- function(state, observed, pars = NULL) {
 
 ## Plot fits 
 plot_fits<-function(sims,data){
-
+  
   ## Community incidence (IID2)
   t<-which(sims["t",1,]%in%
              data$time_end[which(!is.na(data$cases_a1))])
@@ -388,7 +551,7 @@ plot_fits<-function(sims,data){
 
 # Demographicmodel
 run_demog_model<-function(mu, ini=init, p=params, times=365*5, seiar_inst=seiar){
-
+  
   
   
   n_particles <- 1L
@@ -414,13 +577,13 @@ run_demog_model<-function(mu, ini=init, p=params, times=365*5, seiar_inst=seiar)
     w1 = p$w1,
     school= as.double(p$school_uk))
   
-
+  
   model <- seiar_inst$new(pars, 0, 1)
   n_times<-times
   tt<-seq(1,n_times,1)
   x<- model$simulate(tt)
   x<-drop(x)
-
+  
   time <- x[1, ]
   
   # Plotting the trajectories
@@ -444,7 +607,7 @@ run_demog_model<-function(mu, ini=init, p=params, times=365*5, seiar_inst=seiar)
     age.distr.sim=age.distr.sim
     
   )
-
+  
   return(results)
 }
 
@@ -452,7 +615,7 @@ run_demog_model<-function(mu, ini=init, p=params, times=365*5, seiar_inst=seiar)
 ## Run model
 
 run_model<-function(pars, times, seiar=model.seiar){
- 
+  
   n_particles <- 3L
   dt <- pars$dt
   seed<-1
@@ -463,43 +626,43 @@ run_model<-function(pars, times, seiar=model.seiar){
   mort.rates<- pars$mu
   c_mat<-pars$transmission
   c_mat[pars$infa_id,pars$infa_id]<-c_mat[pars$infa_id,pars$infa_id]*pars$aduRR
-
+  
   model <- seiar$new(pars = list(dt = dt,
-                                   M_ini= pars$contact$demography$population*0,
-                                   G_ini= g.ini,
-                                   S_ini=s.ini,
-                                   E_ini=pars$contact$demography$population*0,
-                                   I_ini=i.ini,
-                                   A_ini=pars$contact$demography$population*0,
-                                   R_ini=pars$contact$demography$population*0,
-                                   age_select=pars$age_select,
-                                   beta = pars$beta,   # transm coefficient
-                                   rho   = pars$rho, # rel infect asymptomatic 
-                                   mu    = mort.rates,
-                                   m = c_mat,
-                                   aging_mat= pars$aging_mat, 
-                                   N_age = pars$N_age,
-                                   w1 = pars$w1),
-                       time = 0,
-                       n_particles = n_particles,
-                       n_threads = 4L,
-                       seed = 1L)
+                                 M_ini= pars$contact$demography$population*0,
+                                 G_ini= g.ini,
+                                 S_ini=s.ini,
+                                 E_ini=pars$contact$demography$population*0,
+                                 I_ini=i.ini,
+                                 A_ini=pars$contact$demography$population*0,
+                                 R_ini=pars$contact$demography$population*0,
+                                 age_select=pars$age_select,
+                                 beta = pars$beta,   # transm coefficient
+                                 rho   = pars$rho, # rel infect asymptomatic 
+                                 mu    = mort.rates,
+                                 m = c_mat,
+                                 aging_mat= pars$aging_mat, 
+                                 N_age = pars$N_age,
+                                 w1 = pars$w1),
+                     time = 0,
+                     n_particles = n_particles,
+                     n_threads = 4L,
+                     seed = 1L)
   
   # Define how long the model runs for, number of time steps
   n_times <- times
   x <- array(NA, dim = c(model$info()$len,n_particles, n_times))
-
+  
   # For loop to run the model iteratively
-
-    # for (t in seq_len(n_times))
-    #   {
-    # x[ ,  ,t] <- model$run(t)
-    # }
-
+  
+  # for (t in seq_len(n_times))
+  #   {
+  # x[ ,  ,t] <- model$run(t)
+  # }
+  
   tt<-seq(1/pars$dt,n_times,1/pars$dt)# output only the day step 
   x<- model$simulate(tt)
   
-
+  
   time <- x[1, 1, ]
   # Plotting the trajectories
   idx<-model$info()$index
@@ -527,7 +690,7 @@ run_model<-function(pars, times, seiar=model.seiar){
 
 
 get_output<-function(theta,pars, ntimes, seiar=model.seiar){
- 
+  
   
   nruns <- nrow(theta)
   
@@ -537,40 +700,40 @@ get_output<-function(theta,pars, ntimes, seiar=model.seiar){
   
   
   for (jj in 1:nruns) {
-   
-  pars$beta<-theta[['beta']][jj]
-  pars$aduRR<-theta[['aduRR']][jj]
-  
-  sim<-run_model(pars,ntimes, seiar)
-  
-  states<-sim$states
-  idday<-seq(1,ntimes, 1/pars$dt)
-  idx<-sim$idx
-  
-  N<- states[idx$M,1,]+
-    states[idx$G,1,]+
-    states[idx$S,1,]+
-    states[idx$R,1,]
-  
-  st<-which(days_vec==idd2_startdate)* 1/pars$dt
-  ed<-which(days_vec==idd2_enddate) * 1/pars$dt
-  span<-seq(st,ed,1)
-  cases<-states[idx$cumu_inc,1,span]
-  cases<-tail(t(cases),1)-head(t(cases),1)
-  cases.4<-c(sum(cases[c(1,2)]),cases[3],sum(cases[c(4,5,6,7,8)]),sum(cases[c(9,10)]))
-  
-  PY<-(states[idx$M,1,span]+
-         states[idx$G,1,span]+
-         states[idx$S,1,span]+
-         states[idx$R,1,span])
-  
-  PY<-apply(PY,1,cumsum)
-  PY<-tail(PY,1)-head(PY,1)
-  PY<-PY/(365/pars$dt)
-  PY.4<-c(sum(PY[c(1,2)]),PY[3],sum(PY[c(4,5,6,7,8)]),sum(PY[c(9,10)]))
-
+    
+    pars$beta<-theta[['beta']][jj]
+    pars$aduRR<-theta[['aduRR']][jj]
+    
+    sim<-run_model(pars,ntimes, seiar)
+    
+    states<-sim$states
+    idday<-seq(1,ntimes, 1/pars$dt)
+    idx<-sim$idx
+    
+    N<- states[idx$M,1,]+
+      states[idx$G,1,]+
+      states[idx$S,1,]+
+      states[idx$R,1,]
+    
+    st<-which(days_vec==idd2_startdate)* 1/pars$dt
+    ed<-which(days_vec==idd2_enddate) * 1/pars$dt
+    span<-seq(st,ed,1)
+    cases<-states[idx$cumu_inc,1,span]
+    cases<-tail(t(cases),1)-head(t(cases),1)
+    cases.4<-c(sum(cases[c(1,2)]),cases[3],sum(cases[c(4,5,6,7,8)]),sum(cases[c(9,10)]))
+    
+    PY<-(states[idx$M,1,span]+
+           states[idx$G,1,span]+
+           states[idx$S,1,span]+
+           states[idx$R,1,span])
+    
+    PY<-apply(PY,1,cumsum)
+    PY<-tail(PY,1)-head(PY,1)
+    PY<-PY/(365/pars$dt)
+    PY.4<-c(sum(PY[c(1,2)]),PY[3],sum(PY[c(4,5,6,7,8)]),sum(PY[c(9,10)]))
+    
     irate[jj,]<-1000*cases.4/PY.4
-  
+    
   }
   
   

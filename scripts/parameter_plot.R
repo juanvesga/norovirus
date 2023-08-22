@@ -12,24 +12,30 @@ fake= 0
 stochastic=0
 
 scaling_fac=list(
-  beta_j = 1000,
-  beta_k = 1000,
+  beta_1 = 1000,
+  beta_2 = 1000,
+  beta_3 = 1000,
+  beta_4 = 1000,
   aduRR=100,
   delta = 1,
   rho = 1000,
   tau = 10,
-  w1_j = 100,
-  w1_k = 100,
+  w1_1 = 100,
+  w1_2 = 100,
+  w1_3 = 100,
+  w1_4 = 100,
   repfac=0.25,
-  crossp_jk = 1000,
-  crossp_kj = 1000
+  crossp_12 = 1000,
+  crossp_21 = 1000,
+  crossp_34 = 1000,
+  crossp_43 = 1000
 )
 
 if (stochastic==1){
   load(here("output","processed_samples.RData")) 
 }else{
   
-  load(here("output","processed_samples_det_full.RData"))  
+  load(here("output","processed_samples_det_4str_simplex.RData"))  
   
 }
 

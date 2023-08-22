@@ -117,9 +117,20 @@ school_uk<-c(
   school_year_leap,         # 2004
   school_year, school_year, school_year, # 2005-2007
   school_year_leap,         # 2008
-  school_year, school_year, school_year # 2009-2011
-)
-
+  school_year, school_year, school_year, # 2009-2011
+  school_year_leap, # 2012
+  school_year, school_year, school_year, # 2013-2015
+  school_year_leap, # 2016
+  school_year, school_year, school_year, # 2017-2019
+  school_year_leap, # 2020
+  school_year, school_year, school_year, # 2021-2023
+  school_year_leap, # 2024
+  school_year, school_year, school_year, # 2025-2027
+  school_year_leap, # 2028
+  school_year, school_year, school_year, # 2029-2031
+  school_year_leap, # 2032
+  school_year, school_year, school_year, # 2033-2035
+  school_year_leap)
 #plot(days_vec,school_uk,type = "l", xlim = as.Date(c("2002-01-01","2002-12-31")))
 ########## Model parameters ##############################################
 params<-list(
@@ -137,10 +148,6 @@ params<-list(
   n_school_steps=length(school_uk),
   N_age = length(ages),
   age_select= c(1,seq(2,length(ages),1)*0),
-  beta_j = 0.05,   # transm coefficient strain 1
-  beta_k = 0.05,   # transm coefficient strain 2
-  crossp_jk = 0.01,  # cross-protection from k to j
-  crossp_kj = 0.01,  # cross-protection from j to k
   delta = 25,  # maternal Ab decay (days)
   epsilon = 1,   # incubation
   theta = 2,   # duration symptoms
@@ -162,33 +169,48 @@ params<-list(
   dt=1,
   index_idd2=index_idd2,
   scaling_fac=list(
-    beta_j = 1000,
-    beta_k = 1000,
+    beta_1 = 1000,
+    beta_2 = 1000,
+    beta_3 = 1000,
+    beta_4 = 1000,
     aduRR=100,
     delta = 1,
     rho = 1000,
     tau = 10,
-    w1_j = 100,
-    w1_k = 100,
+    w1_1 = 100,
+    w1_2 = 100,
+    w1_3 = 100,
+    w1_4 = 100,
     repfac=0.25,
-    crossp_jk = 1000,
-    crossp_kj = 1000
-  )
+    crossp_12 = 1000,
+    crossp_21 = 1000,
+    crossp_34 = 1000,
+    crossp_43 = 1000
+  ),
+  
+  vac_camp_cov= c(seq(1,length(ages),1)*0),
+  vac_sche_cov= c(seq(1,length(ages),1)*0)
 )
 
-# Initial conditions of the model (M,G,S,E,I,A,R) x age cats
+# Initial conditions of the model (M,G,S,E,I,A,R) x age cats X 4
 
 #1:3 M,G,S,
 #4:7 Ej,Ij,Aj,Rj
 #8:10 Ekj,Ikj,Akj
 #11:14 Ejk,Ijk,Ajk,Rjk
 #15:18 Ek,Ik,Ak,Rk
+#19:22 El,Il,Al,Rl
+#23:25 Eml,Iml,Aml
+#26:29 Elm,Ilm,Alm,Rlm
+#30:33 Em,Im,Am,Rm
 
-init<-matrix(0, nrow = 18, ncol = length(ages))
+init<-matrix(0, nrow = 114, ncol = length(ages))
 init[2,]<-round(params$pop*params$p_nonsecretor) # G
 init[3,]<-params$pop - round(params$pop*params$p_nonsecretor)
 init[5,5]<-1 # Seed in 15yrs old in Ij
-init[16,5]<-1 # Seed in 15yrs old in Ik
+init[9,5]<-1 # Seed in 15yrs old in Ik
+init[13,5]<-1 # Seed in 15yrs old in Il
+init[17,5]<-1 # Seed in 15yrs old in Im
 #init[7,1]<-500
 
 
