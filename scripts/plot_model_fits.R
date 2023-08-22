@@ -3,7 +3,8 @@ library(matrixStats)
 save_plot=0
 fake=0
 nsim <- 500
-posteriors<-processed_chains$trajectories$state
+ids<- which(processed_chains$probabilities[, "log_posterior"] > -9500) 
+posteriors<-processed_chains$trajectories$state[,ids,]
 # Sample
 sims <- posteriors[,sample(ncol(posteriors), nsim), ]
 
@@ -23,11 +24,26 @@ df_d <- data.frame(
 t<-which(sims["t",1,]%in%
            data$time_end[which(!is.na(data$cases_a1))])
 irates <-1000*(cbind(
-  (sims['cases_year1_str1',,t]+sims['cases_year1_str2',,t])/(sims['person_year1',,t]/365),
-  (sims['cases_year2_str1',,t]+sims['cases_year2_str2',,t])/(sims['person_year2',,t]/365) ,
-  (sims['cases_year3_str1',,t]+sims['cases_year3_str2',,t])/(sims['person_year3',,t]/365) ,
-  (sims['cases_year4_str1',,t]+sims['cases_year4_str2',,t])/(sims['person_year4',,t]/365) ,
-  (sims['cases_year5_str1',,t]+sims['cases_year5_str2',,t])/(sims['person_year5',,t]/365)))
+  (sims['inc_year_gii4_1',,t]+
+       sims['inc_year_gii_1',,t]+
+       sims['inc_year_gi3_1',,t]+
+       sims['inc_year_gi_1',,t])/(sims['person_year1',,t]/365),
+  (sims['inc_year_gii4_2',,t]+
+      sims['inc_year_gii4_2',,t]+
+      sims['inc_year_gi3_2',,t]+
+      sims['inc_year_gi_2',,t])/(sims['person_year2',,t]/365),
+  (sims['inc_year_gii4_3',,t]+
+     sims['inc_year_gii4_3',,t]+
+     sims['inc_year_gi3_3',,t]+
+     sims['inc_year_gi_3',,t])/(sims['person_year3',,t]/365) ,
+  (sims['inc_year_gii4_4',,t]+
+     sims['inc_year_gii4_4',,t]+
+     sims['inc_year_gi3_4',,t]+
+     sims['inc_year_gi_4',,t])/(sims['person_year4',,t]/365) ,
+  (sims['inc_year_gii4_5',,t]+
+     sims['inc_year_gii4_5',,t]+
+     sims['inc_year_gi3_5',,t]+
+     sims['inc_year_gi_5',,t])/(sims['person_year5',,t]/365)))
 
 
 df_qtls <- as.data.frame(rowQuantiles(t(irates),
@@ -75,7 +91,7 @@ fits_iid2 <- ggplot() +
     axis.text.x = element_text(angle = 60, hjust = 1)
   )
 
-fits_iid2
+
 if (save_plot==1){
   save(fits_iid2, file = here("output","fits_iid2.rdata"))
 }
@@ -132,7 +148,7 @@ fits_sgss <- ggplot(data = df_s, aes(x = x)) +
     axis.text.x = element_text(angle = 60, hjust = 1)
   )
 
-fits_sgss
+
 if (save_plot==1){
   save(fits_sgss, file = here("output", "fits_sgss.rdata"))
 }
@@ -189,15 +205,17 @@ fits_sero <- ggplot() +
     width = 0.8,
     linetype = 1,
     trim = FALSE,
-    color = "white",
+    color = viol_col,
     alpha = 0.5
   ) +
-  geom_point(data = df_d, mapping = aes(x = x, y = sero, color = "Data (95% CI)"), size = 2, shape = 15) +
+  geom_point(data = df_d, mapping = aes(x = x, y = sero, 
+                                        color = "Data (95% CI)"), 
+             size = 2, shape = 15) +
   geom_errorbar(
     mapping = aes(x = x, ymin = low, ymax = up), data = df_d,
     width = .2, position = position_dodge(.9)
   ) +
-  labs(title = "Model vs Seroprevalence", x = "Age group (years)", y = "Seroprevalence (%)") +
+  labs(title = "Model vs Seroprevalence of GII.4", x = "Age group (years)", y = "Seroprevalence (%)") +
   theme_minimal() +
   ylim(0, 100) +
   scale_fill_manual(name = "", values = c("Posterior Density" = viol_col)) +
@@ -211,7 +229,7 @@ fits_sero <- ggplot() +
     axis.text.x = element_text(angle = 60, hjust = 1)
   )
 
-fits_sero
+
 if (save_plot==1){
   save(fits_sero, file = here("output","fits_sero.rdata"))
 }
@@ -222,24 +240,133 @@ if (save_plot==1){
 
 
 id<-which(sims["t",1,]%in%
-            data$time_end[which(!is.na(data$g1_prev))])
+            data$time_end[which(!is.na(data$gi_prev))])
 
-tmp_model<-
-  (sims['cases_year1_str2',,id]+
-     sims['cases_year2_str2',,id]+
-     sims['cases_year3_str2',,id]+
-     sims['cases_year4_str2',,id]+
-     sims['cases_year5_str2',,id])/
-  (sims['cases_year1_str1',,id]+
-     sims['cases_year2_str1',,id]+
-     sims['cases_year3_str1',,id]+
-     sims['cases_year4_str1',,id]+
-     sims['cases_year5_str1',,id]+
-     sims['cases_year1_str2',,id]+
-     sims['cases_year2_str2',,id]+
-     sims['cases_year3_str2',,id]+
-     sims['cases_year4_str2',,id]+
-     sims['cases_year5_str2',,id])
+gi3_model<-((sims['inc_year_gi3_1',,id]+
+               sims['inc_year_gi3_2',,id]+
+               sims['inc_year_gi3_3',,id]+
+               sims['inc_year_gi3_4',,id]+
+               sims['inc_year_gi3_5',,id]) /
+              (  sims['inc_year_gii4_1',,id]+
+                   sims['inc_year_gii4_1',,id]+
+                   sims['inc_year_gii4_2',,id]+
+                   sims['inc_year_gii4_3',,id]+
+                   sims['inc_year_gii4_4',,id]+
+                   sims['inc_year_gii4_5',,id]+
+                   sims['inc_year_gii_1',,id]+
+                   sims['inc_year_gii_1',,id]+
+                   sims['inc_year_gii_2',,id]+
+                   sims['inc_year_gii_3',,id]+
+                   sims['inc_year_gii_4',,id]+
+                   sims['inc_year_gii_5',,id]+
+                   sims['inc_year_gi3_1',,id]+
+                   sims['inc_year_gi3_1',,id]+
+                   sims['inc_year_gi3_2',,id]+
+                   sims['inc_year_gi3_3',,id]+
+                   sims['inc_year_gi3_4',,id]+
+                   sims['inc_year_gi3_5',,id]+
+                   sims['inc_year_gi_1',,id]+
+                   sims['inc_year_gi_1',,id]+
+                   sims['inc_year_gi_2',,id]+
+                   sims['inc_year_gi_3',,id]+
+                   sims['inc_year_gi_4',,id]+
+                   sims['inc_year_gi_5',,id]))
+
+gi_model<-(
+        sims['inc_year_gi_1',,id]+
+        sims['inc_year_gi_1',,id]+
+        sims['inc_year_gi_2',,id]+
+        sims['inc_year_gi_3',,id]+
+        sims['inc_year_gi_4',,id]+
+        sims['inc_year_gi_5',,id]) /
+       (  sims['inc_year_gii4_1',,id]+
+            sims['inc_year_gii4_1',,id]+
+            sims['inc_year_gii4_2',,id]+
+            sims['inc_year_gii4_3',,id]+
+            sims['inc_year_gii4_4',,id]+
+            sims['inc_year_gii4_5',,id]+
+            sims['inc_year_gii_1',,id]+
+            sims['inc_year_gii_1',,id]+
+            sims['inc_year_gii_2',,id]+
+            sims['inc_year_gii_3',,id]+
+            sims['inc_year_gii_4',,id]+
+            sims['inc_year_gii_5',,id]+
+            sims['inc_year_gi3_1',,id]+
+            sims['inc_year_gi3_1',,id]+
+            sims['inc_year_gi3_2',,id]+
+            sims['inc_year_gi3_3',,id]+
+            sims['inc_year_gi3_4',,id]+
+            sims['inc_year_gi3_5',,id]+
+            sims['inc_year_gi_1',,id]+
+            sims['inc_year_gi_1',,id]+
+            sims['inc_year_gi_2',,id]+
+            sims['inc_year_gi_3',,id]+
+            sims['inc_year_gi_4',,id]+
+            sims['inc_year_gi_5',,id])
+
+gii4_model<-((sims['inc_year_gii4_1',,id]+
+                sims['inc_year_gii4_2',,id]+
+                sims['inc_year_gii4_3',,id]+
+                sims['inc_year_gii4_4',,id]+
+                sims['inc_year_gii4_5',,id]) /
+               (  sims['inc_year_gii4_1',,id]+
+                    sims['inc_year_gii4_1',,id]+
+                    sims['inc_year_gii4_2',,id]+
+                    sims['inc_year_gii4_3',,id]+
+                    sims['inc_year_gii4_4',,id]+
+                    sims['inc_year_gii4_5',,id]+
+                    sims['inc_year_gii_1',,id]+
+                    sims['inc_year_gii_1',,id]+
+                    sims['inc_year_gii_2',,id]+
+                    sims['inc_year_gii_3',,id]+
+                    sims['inc_year_gii_4',,id]+
+                    sims['inc_year_gii_5',,id]+
+                    sims['inc_year_gi3_1',,id]+
+                    sims['inc_year_gi3_1',,id]+
+                    sims['inc_year_gi3_2',,id]+
+                    sims['inc_year_gi3_3',,id]+
+                    sims['inc_year_gi3_4',,id]+
+                    sims['inc_year_gi3_5',,id]+
+                    sims['inc_year_gi_1',,id]+
+                    sims['inc_year_gi_1',,id]+
+                    sims['inc_year_gi_2',,id]+
+                    sims['inc_year_gi_3',,id]+
+                    sims['inc_year_gi_4',,id]+
+                    sims['inc_year_gi_5',,id]))
+
+gii_model<-((sims['inc_year_gii_1',,id]+
+                sims['inc_year_gii_2',,id]+
+                sims['inc_year_gii_3',,id]+
+                sims['inc_year_gii_4',,id]+
+                sims['inc_year_gii_5',,id]) /
+               (  sims['inc_year_gii4_1',,id]+
+                    sims['inc_year_gii4_1',,id]+
+                    sims['inc_year_gii4_2',,id]+
+                    sims['inc_year_gii4_3',,id]+
+                    sims['inc_year_gii4_4',,id]+
+                    sims['inc_year_gii4_5',,id]+
+                    sims['inc_year_gii_1',,id]+
+                    sims['inc_year_gii_1',,id]+
+                    sims['inc_year_gii_2',,id]+
+                    sims['inc_year_gii_3',,id]+
+                    sims['inc_year_gii_4',,id]+
+                    sims['inc_year_gii_5',,id]+
+                    sims['inc_year_gi3_1',,id]+
+                    sims['inc_year_gi3_1',,id]+
+                    sims['inc_year_gi3_2',,id]+
+                    sims['inc_year_gi3_3',,id]+
+                    sims['inc_year_gi3_4',,id]+
+                    sims['inc_year_gi3_5',,id]+
+                    sims['inc_year_gi_1',,id]+
+                    sims['inc_year_gi_1',,id]+
+                    sims['inc_year_gi_2',,id]+
+                    sims['inc_year_gi_3',,id]+
+                    sims['inc_year_gi_4',,id]+
+                    sims['inc_year_gi_5',,id]))
+
+
+
+
 
 
 if (fake==1){
@@ -251,15 +378,17 @@ if (fake==1){
   
   strain_model<-cbind(g1, g2)
 } else{
-  strain_model<-cbind(tmp_model, 1-tmp_model)*100
+  strain_model<-cbind(gi3_model,gi_model, gii4_model,gii_model )*100
 }
 
 
-id<-which(!is.na(data$g1_prev))
-gii_obs<-c(data$g1_prev[id])
-strain_obs<-c(gii_obs, 1-gii_obs)*100
+id<-which(!is.na(data$gi_prev))
+strain_obs<-c(data$gi3_prev[id],
+              data$gi_prev[id],
+              data$gii4_prev[id],
+              data$gii_prev[id])*100
 
-x_d <- c(1,3) # bin x axis positions
+x_d <- c(1,3,5,7) # bin x axis positions
 
 
 df_d <- data.frame(
@@ -273,11 +402,11 @@ df_qtls <- as.data.frame(rowQuantiles(t(strain_model),
                                       probs = c(0.025, 0.5, 0.975)))
 
 df1 <- data.frame((strain_model)) 
-colnames(df1) <- paste(c("GI","GII"))
+colnames(df1) <- paste(c("GI.3","Other GI","GII.4", "Other GII"))
 df_m <- reshape2::melt(df1)
 df_m$variable <- as.factor(df_m$variable)
-df_d$x <- factor(c("GI","GII"))
-df_qtls$x <- factor(c("GI","GII"))
+df_d$x <- factor(c("GI.3","Other GI","GII.4", "Other GII"))
+df_qtls$x <- factor(c("GI.3","Other GI","GII.4", "Other GII"))
 
 
 viol_col <-  "orange"
@@ -292,10 +421,12 @@ fits_strain <- ggplot() +
     width = 0.8,
     linetype = 1,
     trim = FALSE,
-    color = "white",
+    color = viol_col,
     alpha = 0.5
   ) +
-  geom_point(data = df_d, mapping = aes(x = x, y = strain, color = "Data (95% CI)"), size = 2, shape = 15) +
+  geom_point(data = df_d, mapping = aes(x = x, y = strain, 
+                                        color = "Data (95% CI)"), 
+             size = 2, shape = 15) +
   geom_errorbar(
     mapping = aes(x = x, ymin = low, ymax = up), data = df_d,
     width = .2, position = position_dodge(.9)
@@ -314,7 +445,7 @@ fits_strain <- ggplot() +
     axis.text.x = element_text(angle = 60, hjust = 1)
   )
 
-fits_strain
+
 if (save_plot==1){
   save(fits_strain, file = here("output","fits_strain.rdata"))
 }
